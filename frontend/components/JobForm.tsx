@@ -8,7 +8,17 @@ const initialFormData: JobFormData = {
   description: "",
   category: "",
   location: "",
+  contactName: "",
+  contactEmail: "",
 };
+
+const requestCategoryOptions = [
+  "Plumbing",
+  "Electrical",
+  "Painting",
+  "Joinery",
+  "Other",
+];
 
 type JobFormProps = {
   onSubmit: (data: JobFormData) => Promise<void> | void;
@@ -42,13 +52,14 @@ export default function JobForm({
         placeholder="Need a plumber for a leaking kitchen tap"
       />
 
-      <Input
+      <Select
         label="Category"
         value={formData.category}
         onChange={(value) =>
           setFormData((current) => ({ ...current, category: value }))
         }
-        placeholder="Plumbing"
+        options={requestCategoryOptions}
+        placeholder="Select a category"
       />
 
       <Input
@@ -58,6 +69,25 @@ export default function JobForm({
           setFormData((current) => ({ ...current, location: value }))
         }
         placeholder="Glasgow"
+      />
+
+      <Input
+        label="Contact Name"
+        value={formData.contactName}
+        onChange={(value) =>
+          setFormData((current) => ({ ...current, contactName: value }))
+        }
+        placeholder="Kasuni Disara"
+      />
+
+      <Input
+        label="Contact Email"
+        type="email"
+        value={formData.contactEmail}
+        onChange={(value) =>
+          setFormData((current) => ({ ...current, contactEmail: value }))
+        }
+        placeholder="kasuni.disara@example.com"
       />
 
       <div>
@@ -90,7 +120,8 @@ export default function JobForm({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-2xl border border-slate-300 px-5 py-3 font-bold text-slate-700 hover:bg-slate-50"
+            disabled={isSubmitting}
+            className="rounded-2xl border border-slate-300 px-5 py-3 font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Cancel
           </button>
@@ -105,24 +136,63 @@ function Input({
   value,
   onChange,
   placeholder,
+  type = "text",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
+  type?: string;
 }) {
   return (
     <div>
       <label className="text-sm font-bold text-slate-700">{label}</label>
 
       <input
-        type="text"
+        type={type}
         className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required
       />
+    </div>
+  );
+}
+
+function Select({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  placeholder: string;
+}) {
+  return (
+    <div>
+      <label className="text-sm font-bold text-slate-700">{label}</label>
+
+      <select
+        className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-indigo-500"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required
+      >
+        <option value="" disabled>
+          {placeholder}
+        </option>
+
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

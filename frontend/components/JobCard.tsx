@@ -21,6 +21,10 @@ function getAssignedTradespersonId(job: JobRequest) {
   return job.assignedTradesperson?._id || job.assignedTradesperson?.id;
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function HighlightText({
   text,
   searchTerm,
@@ -56,10 +60,6 @@ function HighlightText({
       )}
     </>
   );
-}
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export default function JobCard({
@@ -102,8 +102,19 @@ export default function JobCard({
         Location: <HighlightText text={job.location} searchTerm={searchTerm} />
       </p>
 
+      <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 ring-1 ring-slate-200">
+        <p>
+          <span className="font-bold text-slate-800">Contact:</span>{" "}
+          <HighlightText text={job.contactName} searchTerm={searchTerm} />
+        </p>
+        <p className="mt-1">
+          <span className="font-bold text-slate-800">Email:</span>{" "}
+          <HighlightText text={job.contactEmail} searchTerm={searchTerm} />
+        </p>
+      </div>
+
       {job.homeowner && (
-        <p className="mt-2 text-sm text-slate-500">
+        <p className="mt-3 text-sm text-slate-500">
           Posted by:{" "}
           <HighlightText text={job.homeowner.name} searchTerm={searchTerm} />
         </p>
@@ -123,7 +134,7 @@ export default function JobCard({
           View Details
         </Link>
 
-        {user.role === "tradesperson" && job.status === "open" && (
+        {user.role === "tradesperson" && job.status === "Open" && (
           <button
             type="button"
             onClick={() => onMarkInProgress?.(job._id)}
@@ -134,7 +145,7 @@ export default function JobCard({
         )}
 
         {user.role === "tradesperson" &&
-          job.status === "in_progress" &&
+          job.status === "In Progress" &&
           isAssignedTradesperson && (
             <button
               type="button"

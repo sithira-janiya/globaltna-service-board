@@ -26,13 +26,32 @@ const initialFormData: JobFormData = {
   description: "",
   category: "",
   location: "",
+  contactName: "",
+  contactEmail: "",
 };
 
 const statusOptions: { label: string; value: JobStatusFilter }[] = [
   { label: "All Statuses", value: "All" },
-  { label: "Open", value: "open" },
-  { label: "In Progress", value: "in_progress" },
-  { label: "Closed", value: "closed" },
+  { label: "Open", value: "Open" },
+  { label: "In Progress", value: "In Progress" },
+  { label: "Closed", value: "Closed" },
+];
+
+const categoryOptions = [
+  "All",
+  "Plumbing",
+  "Electrical",
+  "Painting",
+  "Joinery",
+  "Other",
+];
+
+const requestCategoryOptions = [
+  "Plumbing",
+  "Electrical",
+  "Painting",
+  "Joinery",
+  "Other",
 ];
 
 export default function HomePage() {
@@ -52,22 +71,15 @@ export default function HomePage() {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
 
   const totals = useMemo(() => {
     return {
       total: jobs.length,
-      open: jobs.filter((job) => job.status === "open").length,
-      inProgress: jobs.filter((job) => job.status === "in_progress").length,
-      closed: jobs.filter((job) => job.status === "closed").length,
+      open: jobs.filter((job) => job.status === "Open").length,
+      inProgress: jobs.filter((job) => job.status === "In Progress").length,
+      closed: jobs.filter((job) => job.status === "Closed").length,
     };
-  }, [jobs]);
-
-  const categoryOptions = useMemo(() => {
-    const categories = jobs
-      .map((job) => job.category)
-      .filter((category) => Boolean(category));
-
-    return ["All", ...Array.from(new Set(categories)).sort()];
   }, [jobs]);
 
   const hasActiveFilters =
@@ -127,6 +139,7 @@ export default function HomePage() {
     }
 
     try {
+      setIsCreating(true);
       setError("");
 
       await createJob(formData);
@@ -142,6 +155,8 @@ export default function HomePage() {
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create request");
+    } finally {
+      setIsCreating(false);
     }
   }
 
@@ -210,6 +225,14 @@ export default function HomePage() {
     setLocationFilter("");
   }
 
+  function handleCloseCreateModal() {
+    if (isCreating) {
+      return;
+    }
+
+    setShowForm(false);
+  }
+
   function handleLogout() {
     logoutUser();
     router.push("/login");
@@ -274,8 +297,9 @@ export default function HomePage() {
           </h2>
 
           <p className="mt-6 max-w-3xl text-xl leading-8 text-slate-600">
-            Search by request title, description, homeowner name, or location.
-            Filter requests by status, category, and location in real time.
+            Search by request title, description, homeowner name, contact
+            details, or location. Filter requests by status, category, and
+            location in real time.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-4">
@@ -322,7 +346,7 @@ export default function HomePage() {
                 type="search"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search title, description, homeowner, location..."
+                placeholder="Search title, description, homeowner, contact, location..."
                 className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500"
               />
             </div>
@@ -439,9 +463,23 @@ export default function HomePage() {
       {showForm && user.role === "homeowner" && (
         <Modal
           title="Create Service Request"
-          onClose={() => setShowForm(false)}
+          onClose={handleCloseCreateModal}
+          footer={
+            <button
+              type="submit"
+              form="create-service-request-form"
+              disabled={isCreating}
+              className="w-full rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isCreating ? "Posting..." : "Post Request"}
+            </button>
+          }
         >
-          <form onSubmit={handleCreateJob} className="space-y-5">
+          <form
+            id="create-service-request-form"
+            onSubmit={handleCreateJob}
+            className="space-y-5"
+          >
             <Input
               label="Title"
               value={formData.title}
@@ -451,13 +489,14 @@ export default function HomePage() {
               placeholder="Need a plumber for a leaking kitchen tap"
             />
 
-            <Input
+            <Select
               label="Category"
               value={formData.category}
               onChange={(value) =>
                 setFormData((current) => ({ ...current, category: value }))
               }
-              placeholder="Plumbing"
+              options={requestCategoryOptions}
+              placeholder="Select a category"
             />
 
             <Input
@@ -467,6 +506,25 @@ export default function HomePage() {
                 setFormData((current) => ({ ...current, location: value }))
               }
               placeholder="Glasgow"
+            />
+
+            <Input
+              label="Contact Name"
+              value={formData.contactName}
+              onChange={(value) =>
+                setFormData((current) => ({ ...current, contactName: value }))
+              }
+              placeholder="Full name"
+            />
+
+            <Input
+              label="Contact Email"
+              type="email"
+              value={formData.contactEmail}
+              onChange={(value) =>
+                setFormData((current) => ({ ...current, contactEmail: value }))
+              }
+              placeholder="name@example.com"
             />
 
             <div>
@@ -486,13 +544,6 @@ export default function HomePage() {
                 required
               />
             </div>
-
-            <button
-              type="submit"
-              className="w-full rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white hover:bg-indigo-700"
-            >
-              Post Request
-            </button>
           </form>
         </Modal>
       )}
@@ -512,6 +563,12 @@ export default function HomePage() {
               </p>
               <p>
                 <strong>Location:</strong> {selectedJob.location}
+              </p>
+              <p>
+                <strong>Contact Name:</strong> {selectedJob.contactName}
+              </p>
+              <p>
+                <strong>Contact Email:</strong> {selectedJob.contactEmail}
               </p>
               {selectedJob.homeowner && (
                 <p>
@@ -564,26 +621,37 @@ function Modal({
   title,
   children,
   onClose,
+  footer,
 }: {
   title: string;
   children: React.ReactNode;
   onClose: () => void;
+  footer?: React.ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
-      <div className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-xl">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl font-black">{title}</h2>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/50 px-4 py-6">
+      <div className="mx-auto flex min-h-full w-full max-w-xl items-center justify-center">
+        <div className="flex max-h-[calc(100vh-3rem)] w-full flex-col overflow-hidden rounded-3xl bg-white shadow-xl">
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-8 py-6">
+            <h2 className="text-2xl font-black">{title}</h2>
 
-          <button
-            onClick={onClose}
-            className="rounded-full border border-slate-300 px-4 py-2 font-bold text-slate-600 hover:bg-slate-50"
-          >
-            Close
-          </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-slate-300 px-4 py-2 font-bold text-slate-600 hover:bg-slate-50"
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-8 py-6">{children}</div>
+
+          {footer && (
+            <div className="shrink-0 border-t border-slate-100 bg-white px-8 py-5">
+              {footer}
+            </div>
+          )}
         </div>
-
-        {children}
       </div>
     </div>
   );
@@ -594,23 +662,61 @@ function Input({
   value,
   onChange,
   placeholder,
+  type = "text",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
+  type?: string;
 }) {
   return (
     <div>
       <label className="text-sm font-bold text-slate-700">{label}</label>
       <input
-        type="text"
+        type={type}
         className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required
       />
+    </div>
+  );
+}
+
+function Select({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  placeholder: string;
+}) {
+  return (
+    <div>
+      <label className="text-sm font-bold text-slate-700">{label}</label>
+      <select
+        className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-indigo-500"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required
+      >
+        <option value="" disabled>
+          {placeholder}
+        </option>
+
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
