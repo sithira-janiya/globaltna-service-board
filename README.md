@@ -1,8 +1,25 @@
 # Mini Service Request Board
 
-A small full-stack service request board built for the GlobalTNA Full-Stack Developer Intern technical assessment.
+A full-stack mini service request board built for the **GlobalTNA Full-Stack Developer Intern Technical Assessment**.
 
-Homeowners can create service requests, and tradespeople can browse requests, view details, mark requests as in progress, and close assigned requests.
+Homeowners can create service requests, while tradespeople can browse requests, view request details, mark requests as in progress, and close assigned requests.
+
+---
+
+## Live Demo
+
+**Frontend:**  
+https://globaltna-service-board-suzb.vercel.app
+
+**Backend Health Check:**  
+https://globaltna-service-board-i3cp.onrender.com/health
+
+**Backend Base URL:**  
+https://globaltna-service-board-i3cp.onrender.com
+
+> Note: The backend is hosted on Render free tier, so the first request may take a short time to wake up.
+
+---
 
 ## Tech Stack
 
@@ -12,38 +29,54 @@ Homeowners can create service requests, and tradespeople can browse requests, vi
 - React
 - TypeScript
 - Tailwind CSS
+- Vercel deployment
 
 ### Backend
 
 - Node.js
-- Express
-- MongoDB
+- Express.js
+- MongoDB Atlas
 - Mongoose
 - JWT authentication
 - bcrypt password hashing
+- Jest
+- Supertest
+- MongoDB Memory Server
+- Render deployment
+
+---
 
 ## Features
 
-### Core Features
+### Core Assessment Features
 
-- Home page with service request cards
-- Category, status, location, and keyword filters
-- New job request form
-- Job detail page
+- Home page listing service requests as cards
+- New service request form
+- Job request detail page
 - Create service request
-- View single service request
-- Update job status
-- Delete own service request
-- Backend validation
+- View all service requests
+- View a single service request
+- Update request status
+- Delete service request
+- Category filter
+- Status filter
+- Backend input validation
 - Client-side form validation
 - Global backend error handler
-- 404 response for missing routes
+- Clear 404 response for missing routes
 
-### Bonus Features Added
+### Bonus Features Implemented
 
+- Keyword search across request title and description
+- Extended keyword search across homeowner name, contact name, contact email, and location
 - JWT-based authentication
 - Role-based access for homeowners and tradespeople
-- Keyword search across title, description, homeowner name, contact name, contact email, and location
+- Seed script to insert sample service requests
+- API tests for job creation and status update endpoints
+- Frontend deployed to Vercel
+- Backend deployed to Render
+
+---
 
 ## User Roles
 
@@ -52,9 +85,10 @@ Homeowners can create service requests, and tradespeople can browse requests, vi
 A homeowner can:
 
 - Register and login
-- Create a service request
-- Delete only their own service requests
-- View all requests and details
+- Create service requests
+- View all requests
+- View request details
+- Delete only their own requests
 
 ### Tradesperson
 
@@ -65,6 +99,8 @@ A tradesperson can:
 - View request details
 - Mark an open request as in progress
 - Close a request assigned to them
+
+---
 
 ## Data Model
 
