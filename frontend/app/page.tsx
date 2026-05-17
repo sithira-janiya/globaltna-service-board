@@ -1,284 +1,535 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import JobCard from "@/components/JobCard";
-import { getJobs } from "@/lib/api";
-import { JobRequest } from "@/types/job";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  createJob,
+  deleteJob,
+  getJobs,
+  getStoredUser,
+  logoutUser,
+  markJobClosed,
+  markJobInProgress,
+} from "@/lib/api";
+import { AuthUser, JobFormData, JobRequest } from "@/types/job";
 
-const categories = [
-  "All",
-  "Plumbing",
-  "Electrical",
-  "Painting",
-  "Joinery",
-  "Other",
-];
-const statuses = ["All", "Open", "In Progress", "Closed"];
+const initialFormData: JobFormData = {
+  title: "",
+  description: "",
+  category: "",
+  location: "",
+};
 
+function getOwnerId(job: JobRequest) {
+  return job.homeowner?._id || job.homeowner?.id;
+}
+
+function getAssignedTradespersonId(job: JobRequest) {
+  return job.assignedTradesperson?._id || job.assignedTradesperson?.id;
+}
 
 export default function HomePage() {
+  const router = useRouter();
+
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [jobs, setJobs] = useState<JobRequest[]>([]);
-  const [category, setCategory] = useState("All");
-  const [status, setStatus] = useState("All");
-  const [isLoading, setIsLoading] = useState(true);
+  const [formData, setFormData] = useState<JobFormData>(initialFormData);
+
+  const [showForm, setShowForm] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<JobRequest | null>(null);
+
   const [error, setError] = useState("");
-  const [currentUser, setCurrentUser] = useState<{
-    name: string;
-    email: string;
-  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const totals = useMemo(() => {
+    return {
+      total: jobs.length,
+      open: jobs.filter((job) => job.status === "open").length,
+      inProgress: jobs.filter((job) => job.status === "in_progress").length,
+      closed: jobs.filter((job) => job.status === "closed").length,
+    };
+  }, [jobs]);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("service_board_user");
+    const storedUser = getStoredUser();
 
-    if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
+    if (!storedUser) {
+      router.push("/login");
+      return;
     }
-  }, []);
 
-  function handleLogout() {
-    localStorage.removeItem("service_board_token");
-    localStorage.removeItem("service_board_user");
-    setCurrentUser(null);
-  }
-
+    setUser(storedUser);
+    loadJobs();
+  }, [router]);
 
   async function loadJobs() {
     try {
-      setIsLoading(true);
+      setLoading(true);
       setError("");
-      const data = await getJobs({ category, status });
+
+      const data = await getJobs();
       setJobs(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load requests");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }
 
-  useEffect(() => {
-    loadJobs();
-  }, [category, status]);
+  async function handleCreateJob(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-  const stats = useMemo(() => {
-    return {
-      total: jobs.length,
-      open: jobs.filter((job) => job.status === "Open").length,
-      progress: jobs.filter((job) => job.status === "In Progress").length,
-      closed: jobs.filter((job) => job.status === "Closed").length,
-    };
-  }, [jobs]);
+    if (!user || user.role !== "homeowner") {
+      setError("Only homeowners can create service requests");
+      return;
+    }
 
-  function clearFilters() {
-    setCategory("All");
-    setStatus("All");
+    try {
+      setError("");
+
+      await createJob(formData);
+
+      setFormData(initialFormData);
+      setShowForm(false);
+      await loadJobs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create request");
+    }
+  }
+
+  async function handleMarkInProgress(id: string) {
+    try {
+      setError("");
+      await markJobInProgress(id);
+      await loadJobs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update request");
+    }
+  }
+
+  async function handleMarkClosed(id: string) {
+    try {
+      setError("");
+      await markJobClosed(id);
+      await loadJobs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to close request");
+    }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      setError("");
+      await deleteJob(id);
+      setSelectedJob(null);
+      await loadJobs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete request");
+    }
+  }
+
+  function handleLogout() {
+    logoutUser();
+    router.push("/login");
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <nav className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="flex items-center gap-3">
-          {currentUser ? (
-            <>
-              <span className="hidden text-sm font-medium text-slate-600 sm:inline">
-                Hi, {currentUser.name}
-              </span>
+    <main className="min-h-screen bg-slate-50 text-slate-950">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-950 text-lg font-bold text-white shadow-sm">
+              SB
+            </div>
 
-              <button
-                onClick={handleLogout}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-              >
-                Logout
-              </button>
-
-              <Link
-                href="/jobs/new"
-                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-              >
-                New Request
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-              >
-                Login
-              </Link>
-
-              <Link
-                href="/register"
-                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-              >
-                Register
-              </Link>
-            </>
-          )}
-        </div>
-      </nav>
-
-      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-        <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-          <div>
-            <span className="inline-flex rounded-full bg-indigo-50 px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-indigo-700 ring-1 ring-indigo-100">
-              Service Requests
-            </span>
-
-            <h2 className="mt-6 max-w-3xl text-4xl font-black tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
-              Manage homeowner requests with clarity.
-            </h2>
-
-            <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
-              Post service requests, track progress, and keep tradespeople
-              updated through a simple full-stack request board.
-            </p>
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/jobs/new"
-                className="inline-flex justify-center rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-              >
-                Create Request
-              </Link>
-              <button
-                onClick={clearFilters}
-                className="inline-flex justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-              >
-                Clear Filters
-              </button>
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.4em] text-indigo-600">
+                Operations
+              </p>
+              <h1 className="text-2xl font-black">Service Board</h1>
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            <StatCard label="Total Requests" value={stats.total} dark />
-            <StatCard label="Open" value={stats.open} />
-            <StatCard label="In Progress" value={stats.progress} amber />
-            <StatCard label="Closed" value={stats.closed} />
-          </div>
-        </div>
-
-        <section className="mt-10 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-            <div>
-              <h3 className="text-xl font-bold text-slate-950">
-                Filter requests
-              </h3>
-              <p className="mt-1 text-sm text-slate-600">
-                Narrow the list by trade category or current status.
+          <div className="flex items-center gap-3">
+            <div className="hidden text-right sm:block">
+              <p className="text-sm font-bold text-slate-950">{user.name}</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {user.role}
               </p>
             </div>
 
-            <p className="text-sm font-medium text-slate-500">
-              Showing {jobs.length} request{jobs.length === 1 ? "" : "s"}
-            </p>
-          </div>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-800">
-                Category
-              </label>
-              <select
-                value={category}
-                onChange={(event) => setCategory(event.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+            {user.role === "homeowner" && (
+              <button
+                onClick={() => setShowForm(true)}
+                className="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white shadow-sm hover:bg-indigo-700"
               >
-                {categories.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-            </div>
+                New Request
+              </button>
+            )}
 
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-800">
-                Status
-              </label>
-              <select
-                value={status}
-                onChange={(event) => setStatus(event.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
-              >
-                {statuses.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </section>
-
-        {isLoading && (
-          <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-            <p className="font-semibold text-slate-700">Loading requests...</p>
-          </div>
-        )}
-
-        {error && !isLoading && (
-          <div className="mt-8 rounded-3xl border border-red-200 bg-red-50 p-8 text-center">
-            <h3 className="text-lg font-bold text-red-700">
-              Could not load requests
-            </h3>
-            <p className="mt-2 text-sm text-red-600">{error}</p>
             <button
-              onClick={loadJobs}
-              className="mt-5 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
+              onClick={handleLogout}
+              className="rounded-2xl border border-slate-300 px-5 py-3 font-bold text-slate-700 hover:bg-slate-50"
             >
-              Try Again
+              Logout
             </button>
           </div>
-        )}
+        </div>
+      </header>
 
-        {!isLoading && !error && jobs.length > 0 && (
-          <section className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {jobs.map((job) => (
-              <JobCard key={job._id} job={job} />
-            ))}
-          </section>
-        )}
+      <section className="mx-auto grid max-w-7xl gap-10 px-6 py-12 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
+        <div className="pt-8">
+          <div className="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-5 py-2 text-sm font-black uppercase tracking-[0.4em] text-indigo-600">
+            Service Requests
+          </div>
 
-        {!isLoading && !error && jobs.length === 0 && (
-          <div className="mt-8 rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
-            <h3 className="text-2xl font-bold text-slate-950">
-              No requests found
-            </h3>
-            <p className="mx-auto mt-3 max-w-xl text-slate-600">
-              There are no requests matching the current filters. Create a new
-              request or clear the filters to see everything.
-            </p>
-            <Link
-              href="/jobs/new"
-              className="mt-6 inline-flex rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+          <h2 className="mt-8 max-w-3xl text-5xl font-black leading-tight tracking-tight sm:text-6xl">
+            Manage homeowner requests with clarity.
+          </h2>
+
+          <p className="mt-6 max-w-3xl text-xl leading-8 text-slate-600">
+            Homeowners can post service requests. Tradespeople can browse open
+            work, view details, and move requests through progress.
+          </p>
+
+          <div className="mt-8 flex flex-wrap gap-4">
+            {user.role === "homeowner" && (
+              <button
+                onClick={() => setShowForm(true)}
+                className="rounded-2xl bg-indigo-600 px-6 py-4 font-bold text-white shadow-sm hover:bg-indigo-700"
+              >
+                Create Request
+              </button>
+            )}
+
+            <button
+              onClick={loadJobs}
+              className="rounded-2xl border border-slate-300 bg-white px-6 py-4 font-bold text-slate-700 hover:bg-slate-50"
             >
-              Create First Request
-            </Link>
+              Refresh
+            </button>
+          </div>
+
+          {error && (
+            <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 font-semibold text-red-700">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-5">
+          <SummaryCard title="Total Requests" value={totals.total} dark />
+          <SummaryCard title="Open" value={totals.open} />
+          <SummaryCard title="In Progress" value={totals.inProgress} warning />
+          <SummaryCard title="Closed" value={totals.closed} />
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 pb-16">
+        {loading ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center font-bold text-slate-600">
+            Loading requests...
+          </div>
+        ) : jobs.length === 0 ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center">
+            <h3 className="text-2xl font-black">No service requests yet</h3>
+            <p className="mt-2 text-slate-600">
+              Homeowners can create the first request.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {jobs.map((job) => {
+              const ownerId = getOwnerId(job);
+              const assignedTradespersonId = getAssignedTradespersonId(job);
+
+              const isOwner = user.role === "homeowner" && ownerId === user.id;
+
+              const isAssignedTradesperson =
+                user.role === "tradesperson" &&
+                assignedTradespersonId === user.id;
+
+              return (
+                <article
+                  key={job._id}
+                  className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-[0.25em] text-indigo-600">
+                        {job.category}
+                      </p>
+                      <h3 className="mt-3 text-2xl font-black">{job.title}</h3>
+                    </div>
+
+                    <StatusBadge status={job.status} />
+                  </div>
+
+                  <p className="mt-4 line-clamp-3 text-slate-600">
+                    {job.description}
+                  </p>
+
+                  <p className="mt-5 font-bold text-slate-800">
+                    Location: {job.location}
+                  </p>
+
+                  {job.homeowner && (
+                    <p className="mt-2 text-sm text-slate-500">
+                      Posted by: {job.homeowner.name}
+                    </p>
+                  )}
+
+                  {job.assignedTradesperson && (
+                    <p className="mt-1 text-sm text-slate-500">
+                      Assigned to: {job.assignedTradesperson.name}
+                    </p>
+                  )}
+
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    <button
+                      onClick={() => setSelectedJob(job)}
+                      className="rounded-2xl border border-slate-300 px-4 py-2 font-bold text-slate-700 hover:bg-slate-50"
+                    >
+                      View Details
+                    </button>
+
+                    {user.role === "tradesperson" && job.status === "open" && (
+                      <button
+                        onClick={() => handleMarkInProgress(job._id)}
+                        className="rounded-2xl bg-amber-500 px-4 py-2 font-bold text-white hover:bg-amber-600"
+                      >
+                        Mark In Progress
+                      </button>
+                    )}
+
+                    {user.role === "tradesperson" &&
+                      job.status === "in_progress" &&
+                      isAssignedTradesperson && (
+                        <button
+                          onClick={() => handleMarkClosed(job._id)}
+                          className="rounded-2xl bg-emerald-600 px-4 py-2 font-bold text-white hover:bg-emerald-700"
+                        >
+                          Mark Closed
+                        </button>
+                      )}
+
+                    {isOwner && (
+                      <button
+                        onClick={() => handleDelete(job._id)}
+                        className="rounded-2xl bg-red-600 px-4 py-2 font-bold text-white hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>
+
+      {showForm && user.role === "homeowner" && (
+        <Modal
+          title="Create Service Request"
+          onClose={() => setShowForm(false)}
+        >
+          <form onSubmit={handleCreateJob} className="space-y-5">
+            <Input
+              label="Title"
+              value={formData.title}
+              onChange={(value) =>
+                setFormData((current) => ({ ...current, title: value }))
+              }
+              placeholder="Need a plumber for a leaking kitchen tap"
+            />
+
+            <Input
+              label="Category"
+              value={formData.category}
+              onChange={(value) =>
+                setFormData((current) => ({ ...current, category: value }))
+              }
+              placeholder="Plumbing"
+            />
+
+            <Input
+              label="Location"
+              value={formData.location}
+              onChange={(value) =>
+                setFormData((current) => ({ ...current, location: value }))
+              }
+              placeholder="Glasgow"
+            />
+
+            <div>
+              <label className="text-sm font-bold text-slate-700">
+                Description
+              </label>
+              <textarea
+                className="mt-2 min-h-32 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500"
+                value={formData.description}
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                placeholder="Explain the service issue clearly..."
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white hover:bg-indigo-700"
+            >
+              Post Request
+            </button>
+          </form>
+        </Modal>
+      )}
+
+      {selectedJob && (
+        <Modal title="Request Details" onClose={() => setSelectedJob(null)}>
+          <div className="space-y-4">
+            <StatusBadge status={selectedJob.status} />
+
+            <h3 className="text-3xl font-black">{selectedJob.title}</h3>
+
+            <p className="text-slate-600">{selectedJob.description}</p>
+
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <p>
+                <strong>Category:</strong> {selectedJob.category}
+              </p>
+              <p>
+                <strong>Location:</strong> {selectedJob.location}
+              </p>
+              {selectedJob.homeowner && (
+                <p>
+                  <strong>Homeowner:</strong> {selectedJob.homeowner.name}
+                </p>
+              )}
+              {selectedJob.assignedTradesperson && (
+                <p>
+                  <strong>Tradesperson:</strong>{" "}
+                  {selectedJob.assignedTradesperson.name}
+                </p>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
     </main>
   );
 }
 
-function StatCard({
-  label,
+function SummaryCard({
+  title,
   value,
-  dark = false,
-  amber = false,
+  dark,
+  warning,
 }: {
-  label: string;
+  title: string;
   value: number;
   dark?: boolean;
-  amber?: boolean;
+  warning?: boolean;
 }) {
-  const styles = dark
-    ? "bg-slate-950 text-white"
-    : amber
-      ? "bg-amber-50 text-amber-900 ring-1 ring-amber-100"
-      : "bg-white text-slate-950 ring-1 ring-slate-200";
+  return (
+    <div
+      className={[
+        "rounded-3xl border p-8 shadow-sm",
+        dark
+          ? "border-slate-950 bg-slate-950 text-white"
+          : warning
+            ? "border-amber-200 bg-amber-50 text-amber-900"
+            : "border-slate-200 bg-white text-slate-950",
+      ].join(" ")}
+    >
+      <p className="font-bold opacity-80">{title}</p>
+      <p className="mt-5 text-5xl font-black">{value}</p>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const label =
+    status === "in_progress"
+      ? "In Progress"
+      : status.charAt(0).toUpperCase() + status.slice(1);
 
   return (
-    <div className={`rounded-3xl p-6 shadow-sm ${styles}`}>
-      <p className="text-sm font-medium opacity-80">{label}</p>
-      <p className="mt-3 text-4xl font-black">{value}</p>
+    <span
+      className={[
+        "rounded-full px-4 py-2 text-xs font-black uppercase tracking-wider",
+        status === "open"
+          ? "bg-blue-50 text-blue-700"
+          : status === "in_progress"
+            ? "bg-amber-50 text-amber-700"
+            : "bg-emerald-50 text-emerald-700",
+      ].join(" ")}
+    >
+      {label}
+    </span>
+  );
+}
+
+function Modal({
+  title,
+  children,
+  onClose,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
+      <div className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-xl">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-2xl font-black">{title}</h2>
+
+          <button
+            onClick={onClose}
+            className="rounded-full border border-slate-300 px-4 py-2 font-bold text-slate-600 hover:bg-slate-50"
+          >
+            Close
+          </button>
+        </div>
+
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Input({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div>
+      <label className="text-sm font-bold text-slate-700">{label}</label>
+      <input
+        type="text"
+        className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        required
+      />
     </div>
   );
 }

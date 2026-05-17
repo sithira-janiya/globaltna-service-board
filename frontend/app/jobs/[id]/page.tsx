@@ -4,10 +4,15 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import StatusBadge from "@/components/StatusBadge";
-import { deleteJob, getJobById, updateJobStatus } from "@/lib/api";
-import { JobRequest, JobStatus } from "@/types/job";
-
-const statuses: JobStatus[] = ["Open", "In Progress", "Closed"];
+import {
+  deleteJob,
+  getJobById,
+  getStoredUser,
+  logoutUser,
+  markJobClosed,
+  markJobInProgress,
+} from "@/lib/api";
+import { AuthUser, JobRequest } from "@/types/job";
 
 function formatDate(date?: string) {
   if (!date) return "Not available";
@@ -18,39 +23,37 @@ function formatDate(date?: string) {
   }).format(new Date(date));
 }
 
+function getOwnerId(job: JobRequest) {
+  return job.homeowner?._id || job.homeowner?.id;
+}
+
+function getAssignedTradespersonId(job: JobRequest) {
+  return job.assignedTradesperson?._id || job.assignedTradesperson?.id;
+}
+
 export default function JobDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
 
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [job, setJob] = useState<JobRequest | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<JobStatus>("Open");
+
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("service_board_token");
-    setIsAuthenticated(Boolean(token));
-  }, []);
+    const storedUser = getStoredUser();
 
-  async function loadJob() {
-    try {
-      setIsLoading(true);
-      setError("");
-
-      const data = await getJobById(id);
-
-      setJob(data);
-      setSelectedStatus(data.status);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load request");
-    } finally {
-      setIsLoading(false);
+    if (!storedUser) {
+      router.push("/login");
+      return;
     }
-  }
+
+    setUser(storedUser);
+  }, [router]);
 
   useEffect(() => {
     if (id) {
@@ -58,24 +61,54 @@ export default function JobDetailPage() {
     }
   }, [id]);
 
-  async function handleStatusUpdate() {
-    if (!job || !isAuthenticated) return;
+  async function loadJob() {
+    try {
+      setIsLoading(true);
+      setError("");
+
+      const data = await getJobById(id);
+      setJob(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load request");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleMarkInProgress() {
+    if (!job || !user || user.role !== "tradesperson") return;
 
     try {
       setIsUpdating(true);
       setError("");
 
-      const updatedJob = await updateJobStatus(job._id, selectedStatus);
+      const updatedJob = await markJobInProgress(job._id);
       setJob(updatedJob);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update status");
+      setError(err instanceof Error ? err.message : "Failed to update request");
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
+  async function handleMarkClosed() {
+    if (!job || !user || user.role !== "tradesperson") return;
+
+    try {
+      setIsUpdating(true);
+      setError("");
+
+      const updatedJob = await markJobClosed(job._id);
+      setJob(updatedJob);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to close request");
     } finally {
       setIsUpdating(false);
     }
   }
 
   async function handleDelete() {
-    if (!job || !isAuthenticated) return;
+    if (!job || !user || user.role !== "homeowner") return;
 
     const confirmed = window.confirm(
       "Are you sure you want to delete this request?",
@@ -85,6 +118,7 @@ export default function JobDetailPage() {
 
     try {
       setIsDeleting(true);
+      setError("");
 
       await deleteJob(job._id);
 
@@ -97,6 +131,20 @@ export default function JobDetailPage() {
     }
   }
 
+  function handleLogout() {
+    logoutUser();
+    router.push("/login");
+  }
+
+  const isOwner =
+    user && job && user.role === "homeowner" && getOwnerId(job) === user.id;
+
+  const isAssignedTradesperson =
+    user &&
+    job &&
+    user.role === "tradesperson" &&
+    getAssignedTradespersonId(job) === user.id;
+
   return (
     <main className="min-h-screen bg-slate-50">
       <nav className="border-b border-slate-200 bg-white">
@@ -105,14 +153,32 @@ export default function JobDetailPage() {
             ← Service Board
           </Link>
 
-          {!isAuthenticated && (
-            <Link
-              href="/login"
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              Login
-            </Link>
-          )}
+          <div className="flex items-center gap-3">
+            {user && (
+              <div className="hidden text-right sm:block">
+                <p className="text-sm font-bold text-slate-950">{user.name}</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  {user.role}
+                </p>
+              </div>
+            )}
+
+            {user ? (
+              <button
+                onClick={handleLogout}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Logout
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              >
+                Login
+              </Link>
+            )}
+          </div>
         </div>
       </nav>
 
@@ -128,6 +194,7 @@ export default function JobDetailPage() {
             <h1 className="text-xl font-bold text-red-700">
               Something went wrong
             </h1>
+
             <p className="mt-2 text-sm text-red-600">{error}</p>
 
             <Link
@@ -180,13 +247,13 @@ export default function JobDetailPage() {
                   />
 
                   <InfoCard
-                    label="Contact Name"
-                    value={job.contactName || "Not specified"}
+                    label="Homeowner"
+                    value={job.homeowner?.name || "Not available"}
                   />
 
                   <InfoCard
-                    label="Contact Email"
-                    value={job.contactEmail || "Not specified"}
+                    label="Assigned Tradesperson"
+                    value={job.assignedTradesperson?.name || "Not assigned"}
                   />
                 </div>
               </section>
@@ -197,61 +264,79 @@ export default function JobDetailPage() {
                 </h2>
 
                 <p className="mt-2 text-sm text-slate-600">
-                  Update the progress status or remove this request.
+                  Actions are controlled by your account role.
                 </p>
 
-                {!isAuthenticated && (
+                {!user && (
                   <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                    Please log in to update or delete this request.
+                    Please log in to manage this request.
                   </div>
                 )}
 
-                <div className="mt-6">
-                  <label className="mb-2 block text-sm font-semibold text-slate-800">
-                    Status
-                  </label>
+                {user?.role === "homeowner" && (
+                  <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                    Homeowners can create and delete only their own service
+                    requests.
+                  </div>
+                )}
 
-                  <select
-                    value={selectedStatus}
-                    onChange={(event) =>
-                      setSelectedStatus(event.target.value as JobStatus)
-                    }
-                    disabled={!isAuthenticated}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                {user?.role === "tradesperson" && (
+                  <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                    Tradespeople can move open requests to in progress and close
+                    their assigned requests.
+                  </div>
+                )}
+
+                {user?.role === "tradesperson" && job.status === "open" && (
+                  <button
+                    onClick={handleMarkInProgress}
+                    disabled={isUpdating}
+                    className="mt-6 w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {statuses.map((status) => (
-                      <option key={status}>{status}</option>
-                    ))}
-                  </select>
-                </div>
+                    {isUpdating ? "Updating..." : "Mark In Progress"}
+                  </button>
+                )}
 
-                <button
-                  onClick={handleStatusUpdate}
-                  disabled={
-                    isUpdating ||
-                    selectedStatus === job.status ||
-                    !isAuthenticated
-                  }
-                  className="mt-4 w-full rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isUpdating ? "Updating..." : "Update Status"}
-                </button>
+                {user?.role === "tradesperson" &&
+                  job.status === "in_progress" &&
+                  isAssignedTradesperson && (
+                    <button
+                      onClick={handleMarkClosed}
+                      disabled={isUpdating}
+                      className="mt-6 w-full rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isUpdating ? "Closing..." : "Mark Closed"}
+                    </button>
+                  )}
 
-                <button
-                  onClick={handleDelete}
-                  disabled={isDeleting || !isAuthenticated}
-                  className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isDeleting ? "Deleting..." : "Delete Request"}
-                </button>
+                {user?.role === "tradesperson" &&
+                  job.status === "in_progress" &&
+                  !isAssignedTradesperson && (
+                    <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                      This request is already assigned to another tradesperson.
+                    </div>
+                  )}
 
-                {!isAuthenticated && (
-                  <Link
-                    href="/login"
-                    className="mt-4 inline-flex w-full justify-center rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                {isOwner && (
+                  <button
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="mt-6 w-full rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Login to Manage
-                  </Link>
+                    {isDeleting ? "Deleting..." : "Delete Request"}
+                  </button>
+                )}
+
+                {user?.role === "homeowner" && !isOwner && (
+                  <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                    You can only delete requests created by your own account.
+                  </div>
+                )}
+
+                {job.status === "closed" && (
+                  <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                    This request is already closed.
+                  </div>
                 )}
               </aside>
             </div>
