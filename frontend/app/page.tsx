@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import JobCard from "@/components/JobCard";
-import { jobApi } from "@/lib/api";
-import { Job } from "@/types/job";
+import { getJobs } from "@/lib/api";
+import { JobRequest } from "@/types/job";
 
-const CATEGORIES = [
+const categories = [
   "All",
   "Plumbing",
   "Electrical",
@@ -14,222 +14,234 @@ const CATEGORIES = [
   "Joinery",
   "Other",
 ];
-const STATUSES = ["All", "Open", "In Progress", "Closed"];
+const statuses = ["All", "Open", "In Progress", "Closed"];
 
-export default function Home() {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function HomePage() {
+  const [jobs, setJobs] = useState<JobRequest[]>([]);
+  const [category, setCategory] = useState("All");
+  const [status, setStatus] = useState("All");
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedStatus, setSelectedStatus] = useState("All");
+
+  async function loadJobs() {
+    try {
+      setIsLoading(true);
+      setError("");
+      const data = await getJobs({ category, status });
+      setJobs(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load requests");
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   useEffect(() => {
-    fetchJobs();
-  }, [selectedCategory, selectedStatus]);
+    loadJobs();
+  }, [category, status]);
 
-  const fetchJobs = async () => {
-    setLoading(true);
-    setError("");
+  const stats = useMemo(() => {
+    return {
+      total: jobs.length,
+      open: jobs.filter((job) => job.status === "Open").length,
+      progress: jobs.filter((job) => job.status === "In Progress").length,
+      closed: jobs.filter((job) => job.status === "Closed").length,
+    };
+  }, [jobs]);
 
-    const filters: { category?: string; status?: string } = {};
-    if (selectedCategory !== "All") filters.category = selectedCategory;
-    if (selectedStatus !== "All") filters.status = selectedStatus;
-
-    const result = await jobApi.getAllJobs(filters);
-
-    if (result.success) {
-      setJobs(result.data);
-    } else {
-      setError(result.error || "Failed to load jobs");
-    }
-    setLoading(false);
-  };
-
-  const statusCounts = jobs.reduce(
-    (acc, job) => {
-      acc[job.status] += 1;
-      return acc;
-    },
-    {
-      Open: 0,
-      "In Progress": 0,
-      Closed: 0,
-    },
-  );
-
-  const clearFilters = () => {
-    setSelectedCategory("All");
-    setSelectedStatus("All");
-  };
+  function clearFilters() {
+    setCategory("All");
+    setStatus("All");
+  }
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-8 lg:space-y-10">
-      <section className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] sm:p-8 lg:p-10">
-        <div className="grid gap-8 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.8fr)] xl:items-start">
-          <div className="space-y-5">
-            <div className="inline-flex rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-white">
-              Service requests
+    <main className="min-h-screen bg-slate-50">
+      <nav className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-950 text-white shadow-sm">
+              SB
             </div>
-            <div className="space-y-3">
-              <h1 className="max-w-2xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
-                Keep requests visible, clear, and moving.
-              </h1>
-              <p className="max-w-2xl text-sm leading-7 text-slate-600 sm:text-base lg:text-lg">
-                Track new work, spot what needs attention, and update progress
-                in a few clicks.
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.25em] text-indigo-600">
+                Operations
               </p>
+              <h1 className="text-lg font-bold text-slate-950">
+                Service Board
+              </h1>
             </div>
-            <div className="flex flex-wrap gap-3">
+          </Link>
+
+          <Link
+            href="/jobs/new"
+            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+          >
+            New Request
+          </Link>
+        </div>
+      </nav>
+
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+        <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+          <div>
+            <span className="inline-flex rounded-full bg-indigo-50 px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-indigo-700 ring-1 ring-indigo-100">
+              Service Requests
+            </span>
+
+            <h2 className="mt-6 max-w-3xl text-4xl font-black tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
+              Manage homeowner requests with clarity.
+            </h2>
+
+            <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
+              Post service requests, track progress, and keep tradespeople
+              updated through a simple full-stack request board.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/jobs/new"
-                className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition-transform hover:-translate-y-0.5"
+                className="inline-flex justify-center rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
               >
-                Create request
+                Create Request
               </Link>
               <button
-                type="button"
                 onClick={clearFilters}
-                className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                className="inline-flex justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
               >
-                Clear filters
+                Clear Filters
               </button>
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-            <div className="rounded-2xl bg-slate-950 p-5 text-white shadow-lg shadow-slate-950/10">
-              <p className="text-sm text-slate-300">Total requests</p>
-              <p className="mt-2 text-3xl font-semibold">{jobs.length}</p>
-            </div>
-            <div className="rounded-2xl border border-sky-100 bg-sky-50 p-5 text-sky-950">
-              <p className="text-sm text-sky-700">Open</p>
-              <p className="mt-2 text-3xl font-semibold">{statusCounts.Open}</p>
-            </div>
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 text-emerald-950">
-              <p className="text-sm text-emerald-700">Completed</p>
-              <p className="mt-2 text-3xl font-semibold">
-                {statusCounts.Closed}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            <StatCard label="Total Requests" value={stats.total} dark />
+            <StatCard label="Open" value={stats.open} />
+            <StatCard label="In Progress" value={stats.progress} amber />
+            <StatCard label="Closed" value={stats.closed} />
+          </div>
+        </div>
+
+        <section className="mt-10 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div>
+              <h3 className="text-xl font-bold text-slate-950">
+                Filter requests
+              </h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Narrow the list by trade category or current status.
               </p>
             </div>
-          </div>
-        </div>
-      </section>
 
-      <div className="rounded-[2rem] border border-white/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-8">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold tracking-tight text-slate-950">
-              Filter requests
-            </h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Narrow the list by trade or status.
+            <p className="text-sm font-medium text-slate-500">
+              Showing {jobs.length} request{jobs.length === 1 ? "" : "s"}
             </p>
           </div>
-          <p className="text-sm text-slate-500">
-            Showing {jobs.length} request{jobs.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <div className="space-y-2">
-            <label
-              htmlFor="category"
-              className="block text-sm font-semibold text-slate-900"
-            >
-              Category
-            </label>
-            <select
-              id="category"
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-slate-900 outline-none transition focus:border-transparent focus:ring-2 focus:ring-sky-500/30"
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-800">
+                Category
+              </label>
+              <select
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+              >
+                {categories.map((item) => (
+                  <option key={item}>{item}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-800">
+                Status
+              </label>
+              <select
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+              >
+                {statuses.map((item) => (
+                  <option key={item}>{item}</option>
+                ))}
+              </select>
+            </div>
           </div>
+        </section>
 
-          <div className="space-y-2">
-            <label
-              htmlFor="status"
-              className="block text-sm font-semibold text-slate-900"
-            >
-              Status
-            </label>
-            <select
-              id="status"
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-slate-900 outline-none transition focus:border-transparent focus:ring-2 focus:ring-sky-500/30"
-            >
-              {STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
+        {isLoading && (
+          <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+            <p className="font-semibold text-slate-700">Loading requests...</p>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Error State */}
-      {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-5">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-red-700">
-            Unable to load requests
-          </p>
-          <p className="mt-2 text-sm leading-6 text-red-800">{error}</p>
-        </div>
-      )}
-
-      {/* Loading State */}
-      {loading && (
-        <div className="rounded-[2rem] border border-white/70 bg-white/85 py-16 text-center shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
-          <div className="inline-block">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-sky-100 border-t-sky-500"></div>
+        {error && !isLoading && (
+          <div className="mt-8 rounded-3xl border border-red-200 bg-red-50 p-8 text-center">
+            <h3 className="text-lg font-bold text-red-700">
+              Could not load requests
+            </h3>
+            <p className="mt-2 text-sm text-red-600">{error}</p>
+            <button
+              onClick={loadJobs}
+              className="mt-5 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
+            >
+              Try Again
+            </button>
           </div>
-          <p className="mt-4 text-base font-medium text-slate-600">
-            Loading requests...
-          </p>
-        </div>
-      )}
+        )}
 
-      {/* Empty State */}
-      {!loading && jobs.length === 0 && !error && (
-        <div className="rounded-[2rem] border border-dashed border-slate-300 bg-white/85 px-6 py-14 text-center shadow-[0_18px_40px_rgba(15,23,42,0.05)] sm:px-10">
-          <p className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-            No requests yet
-          </p>
-          <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-slate-600">
-            There are no requests matching these filters. Create the first one
-            or clear the filters to see everything.
-          </p>
-          <Link
-            href="/jobs/new"
-            className="mt-6 inline-flex rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition-transform hover:-translate-y-0.5"
-          >
-            Create first request
-          </Link>
-        </div>
-      )}
-
-      {/* Jobs Grid */}
-      {!loading && jobs.length > 0 && (
-        <div>
-          <p className="mb-6 text-sm font-medium uppercase tracking-[0.18em] text-slate-500">
-            Showing <span className="text-slate-900">{jobs.length}</span>{" "}
-            request
-            {jobs.length !== 1 ? "s" : ""}
-          </p>
-          <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {!isLoading && !error && jobs.length > 0 && (
+          <section className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {jobs.map((job) => (
               <JobCard key={job._id} job={job} />
             ))}
+          </section>
+        )}
+
+        {!isLoading && !error && jobs.length === 0 && (
+          <div className="mt-8 rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+            <h3 className="text-2xl font-bold text-slate-950">
+              No requests found
+            </h3>
+            <p className="mx-auto mt-3 max-w-xl text-slate-600">
+              There are no requests matching the current filters. Create a new
+              request or clear the filters to see everything.
+            </p>
+            <Link
+              href="/jobs/new"
+              className="mt-6 inline-flex rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            >
+              Create First Request
+            </Link>
           </div>
-        </div>
-      )}
+        )}
+      </section>
+    </main>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  dark = false,
+  amber = false,
+}: {
+  label: string;
+  value: number;
+  dark?: boolean;
+  amber?: boolean;
+}) {
+  const styles = dark
+    ? "bg-slate-950 text-white"
+    : amber
+      ? "bg-amber-50 text-amber-900 ring-1 ring-amber-100"
+      : "bg-white text-slate-950 ring-1 ring-slate-200";
+
+  return (
+    <div className={`rounded-3xl p-6 shadow-sm ${styles}`}>
+      <p className="text-sm font-medium opacity-80">{label}</p>
+      <p className="mt-3 text-4xl font-black">{value}</p>
     </div>
   );
 }
