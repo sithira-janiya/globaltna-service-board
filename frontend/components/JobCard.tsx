@@ -7,6 +7,7 @@ import { AuthUser, JobRequest } from "@/types/job";
 type JobCardProps = {
   job: JobRequest;
   user: AuthUser;
+  searchTerm?: string;
   onMarkInProgress?: (id: string) => void;
   onMarkClosed?: (id: string) => void;
   onDelete?: (id: string) => void;
@@ -20,9 +21,51 @@ function getAssignedTradespersonId(job: JobRequest) {
   return job.assignedTradesperson?._id || job.assignedTradesperson?.id;
 }
 
+function HighlightText({
+  text,
+  searchTerm,
+}: {
+  text: string;
+  searchTerm?: string;
+}) {
+  if (!searchTerm || searchTerm.trim() === "") {
+    return <>{text}</>;
+  }
+
+  const safeSearch = searchTerm.trim();
+
+  if (!safeSearch) {
+    return <>{text}</>;
+  }
+
+  const parts = text.split(new RegExp(`(${escapeRegExp(safeSearch)})`, "gi"));
+
+  return (
+    <>
+      {parts.map((part, index) =>
+        part.toLowerCase() === safeSearch.toLowerCase() ? (
+          <mark
+            key={`${part}-${index}`}
+            className="rounded bg-yellow-200 px-1 text-slate-950"
+          >
+            {part}
+          </mark>
+        ) : (
+          <span key={`${part}-${index}`}>{part}</span>
+        ),
+      )}
+    </>
+  );
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export default function JobCard({
   job,
   user,
+  searchTerm,
   onMarkInProgress,
   onMarkClosed,
   onDelete,
@@ -44,20 +87,25 @@ export default function JobCard({
           </p>
 
           <h3 className="mt-3 text-2xl font-black text-slate-950">
-            {job.title}
+            <HighlightText text={job.title} searchTerm={searchTerm} />
           </h3>
         </div>
 
         <StatusBadge status={job.status} />
       </div>
 
-      <p className="mt-4 line-clamp-3 text-slate-600">{job.description}</p>
+      <p className="mt-4 line-clamp-3 text-slate-600">
+        <HighlightText text={job.description} searchTerm={searchTerm} />
+      </p>
 
-      <p className="mt-5 font-bold text-slate-800">Location: {job.location}</p>
+      <p className="mt-5 font-bold text-slate-800">
+        Location: <HighlightText text={job.location} searchTerm={searchTerm} />
+      </p>
 
       {job.homeowner && (
         <p className="mt-2 text-sm text-slate-500">
-          Posted by: {job.homeowner.name}
+          Posted by:{" "}
+          <HighlightText text={job.homeowner.name} searchTerm={searchTerm} />
         </p>
       )}
 
