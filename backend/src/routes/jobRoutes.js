@@ -9,14 +9,6 @@ const {
 
 const router = express.Router();
 
-/**
- * Job Routes
- * GET    /api/jobs           - List all jobs with optional filters
- * GET    /api/jobs/:id       - Fetch single job
- * POST   /api/jobs           - Create job
- * PATCH  /api/jobs/:id       - Update job status
- * DELETE /api/jobs/:id       - Delete job
- */
 
 router.get("/", getAllJobs);
 router.post("/", createJob);

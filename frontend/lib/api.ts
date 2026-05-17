@@ -2,20 +2,24 @@ import axios, { AxiosError } from "axios";
 import { Job, ApiResponse, CreateJobInput } from "@/types/job";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
+  "http://localhost:5000/api";
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 12000,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  const apiError = error as AxiosError<ApiResponse<null>>;
+  return apiError?.response?.data?.message || fallback;
+}
+
 export const jobApi = {
-  async getAllJobs(filters?: {
-    category?: string;
-    status?: string;
-  }): Promise<{
+  async getAllJobs(filters?: { category?: string; status?: string }): Promise<{
     success: boolean;
     data: Job[];
     error?: string;
@@ -31,9 +35,7 @@ export const jobApi = {
         count: response.data.count || 0,
       };
     } catch (error) {
-      const message =
-        (error as AxiosError<ApiResponse<null>>)?.response?.data?.message ||
-        "Failed to fetch jobs";
+      const message = getErrorMessage(error, "Failed to fetch jobs");
       return {
         success: false,
         error: message,
@@ -53,9 +55,7 @@ export const jobApi = {
         data: response.data.data,
       };
     } catch (error) {
-      const message =
-        (error as AxiosError<ApiResponse<null>>)?.response?.data?.message ||
-        "Failed to fetch job";
+      const message = getErrorMessage(error, "Failed to fetch job");
       return {
         success: false,
         error: message,
@@ -81,8 +81,7 @@ export const jobApi = {
     } catch (error) {
       const apiError = error as AxiosError<ApiResponse<null>>;
       const errors = apiError?.response?.data?.errors || [];
-      const message =
-        apiError?.response?.data?.message || "Failed to create job";
+      const message = getErrorMessage(error, "Failed to create job");
       return {
         success: false,
         error: message,
@@ -105,9 +104,7 @@ export const jobApi = {
         data: response.data.data,
       };
     } catch (error) {
-      const message =
-        (error as AxiosError<ApiResponse<null>>)?.response?.data?.message ||
-        "Failed to update job";
+      const message = getErrorMessage(error, "Failed to update job");
       return {
         success: false,
         error: message,
@@ -120,9 +117,7 @@ export const jobApi = {
       await axiosInstance.delete(`/jobs/${id}`);
       return { success: true };
     } catch (error) {
-      const message =
-        (error as AxiosError<ApiResponse<null>>)?.response?.data?.message ||
-        "Failed to delete job";
+      const message = getErrorMessage(error, "Failed to delete job");
       return {
         success: false,
         error: message,

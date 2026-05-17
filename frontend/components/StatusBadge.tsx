@@ -8,18 +8,19 @@ interface StatusBadgeProps {
 
 export default function StatusBadge({ status }: StatusBadgeProps) {
   const statusStyles: Record<Job["status"], string> = {
-    Open: "bg-blue-100 text-blue-900 border-2 border-blue-300",
-    "In Progress": "bg-yellow-100 text-yellow-900 border-2 border-yellow-300",
-    Closed: "bg-green-100 text-green-900 border-2 border-green-300",
+    Open: "bg-sky-50 text-sky-800 ring-1 ring-inset ring-sky-200",
+    "In Progress":
+      "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200",
+    Closed: "bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-200",
   };
 
   const style =
     statusStyles[status] ||
-    "bg-gray-100 text-gray-900 border-2 border-gray-300";
+    "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200";
 
   return (
     <span
-      className={`inline-block px-4 py-2 text-sm font-bold rounded-full ${style}`}
+      className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold tracking-wide ${style}`}
     >
       {status}
     </span>

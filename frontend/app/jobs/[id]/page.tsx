@@ -86,11 +86,13 @@ export default function JobDetailPage() {
 
   if (loading) {
     return (
-      <div className="text-center py-16 bg-white rounded-2xl">
+      <div className="rounded-[2rem] border border-white/70 bg-white/85 py-16 text-center shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
         <div className="inline-block">
-          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-sky-100 border-t-sky-500"></div>
         </div>
-        <p className="text-gray-700 mt-6 text-lg font-medium">Loading job details...</p>
+        <p className="mt-6 text-base font-medium text-slate-600">
+          Loading request details...
+        </p>
       </div>
     );
   }
@@ -100,13 +102,15 @@ export default function JobDetailPage() {
       <div className="space-y-6">
         <Link
           href="/"
-          className="text-blue-600 hover:text-blue-700 font-bold text-lg inline-block"
+          className="inline-block text-sm font-semibold text-sky-700 hover:text-sky-800"
         >
           ← Back to Requests
         </Link>
-        <div className="p-8 bg-red-50 border-l-4 border-red-500 rounded-lg">
-          <p className="text-red-900 font-bold text-2xl">❌ Error</p>
-          <p className="text-red-700 mt-3 text-lg">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-5">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-red-700">
+            Request not available
+          </p>
+          <p className="mt-2 text-sm leading-6 text-red-800">
             {error || "Job request not found"}
           </p>
         </div>
@@ -119,21 +123,25 @@ export default function JobDetailPage() {
       {/* Back Link */}
       <Link
         href="/"
-        className="text-blue-600 hover:text-blue-700 font-bold inline-block text-lg"
+        className="inline-block text-sm font-semibold text-sky-700 hover:text-sky-800"
       >
         ← Back to Requests
       </Link>
 
-      {/* Header with Gradient */}
-      <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-2xl p-8 text-white shadow-lg">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="rounded-[2rem] bg-slate-950 p-8 text-white shadow-[0_24px_60px_rgba(15,23,42,0.18)] sm:p-10">
+        <div className="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
           <div className="flex-1">
-            <h1 className="text-5xl font-bold">{job.title}</h1>
-            <p className="text-purple-100 mt-3">
-              📅 Created on {new Date(job.createdAt).toLocaleDateString()}
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-300">
+              Request overview
+            </p>
+            <h1 className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">
+              {job.title}
+            </h1>
+            <p className="mt-3 text-sm text-slate-300">
+              Created {new Date(job.createdAt).toLocaleDateString()}
             </p>
           </div>
-          <div className="mt-4 sm:mt-0">
+          <div>
             <StatusBadge status={job.status} />
           </div>
         </div>
@@ -141,66 +149,80 @@ export default function JobDetailPage() {
 
       {/* Messages */}
       {statusSuccess && (
-        <div className="p-5 bg-green-50 border-l-4 border-green-500 rounded-lg">
-          <p className="text-green-900 font-bold text-lg">✅ Success</p>
-          <p className="text-green-700 mt-2">{statusSuccess}</p>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">
+            Updated
+          </p>
+          <p className="mt-2 text-sm leading-6 text-emerald-800">
+            {statusSuccess}
+          </p>
         </div>
       )}
       {statusError && (
-        <div className="p-5 bg-red-50 border-l-4 border-red-500 rounded-lg">
-          <p className="text-red-900 font-bold text-lg">⚠️ Error</p>
-          <p className="text-red-700 mt-2">{statusError}</p>
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-700">
+            Update failed
+          </p>
+          <p className="mt-2 text-sm leading-6 text-red-800">{statusError}</p>
         </div>
       )}
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Details */}
         <div className="lg:col-span-2 space-y-6">
           {/* Description */}
-          <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              📝 Description
+          <div className="rounded-[2rem] border border-white/70 bg-white/90 p-8 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+            <h2 className="mb-4 text-xl font-semibold tracking-tight text-slate-950">
+              Description
             </h2>
-            <p className="text-gray-700 whitespace-pre-wrap text-lg leading-relaxed">
+            <p className="whitespace-pre-wrap text-base leading-8 text-slate-600">
               {job.description}
             </p>
           </div>
 
           {/* Details Grid */}
-          <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">📋 Details</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="rounded-[2rem] border border-white/70 bg-white/90 p-8 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+            <h2 className="mb-6 text-xl font-semibold tracking-tight text-slate-950">
+              Details
+            </h2>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
-                <p className="text-gray-600 text-sm font-bold uppercase tracking-wide">Category</p>
-                <p className="text-gray-900 mt-3 px-4 py-2 bg-gradient-to-r from-blue-50 to-blue-100 inline-block rounded-full font-bold border border-blue-200">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Category
+                </p>
+                <p className="mt-3 inline-flex rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-800 ring-1 ring-inset ring-slate-200">
                   {job.category}
                 </p>
               </div>
               {job.location && (
                 <div>
-                  <p className="text-gray-600 text-sm font-bold uppercase tracking-wide">
-                    📍 Location
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Location
                   </p>
-                  <p className="text-gray-900 mt-3 text-lg font-medium">{job.location}</p>
+                  <p className="mt-3 text-base font-medium text-slate-900">
+                    {job.location}
+                  </p>
                 </div>
               )}
               {job.contactName && (
                 <div>
-                  <p className="text-gray-600 text-sm font-bold uppercase tracking-wide">
-                    👤 Contact Name
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Contact name
                   </p>
-                  <p className="text-gray-900 mt-3 text-lg font-medium">{job.contactName}</p>
+                  <p className="mt-3 text-base font-medium text-slate-900">
+                    {job.contactName}
+                  </p>
                 </div>
               )}
               {job.contactEmail && (
                 <div>
-                  <p className="text-gray-600 text-sm font-bold uppercase tracking-wide">
-                    📧 Contact Email
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Contact email
                   </p>
                   <a
                     href={`mailto:${job.contactEmail}`}
-                    className="text-blue-600 hover:text-blue-700 mt-3 block text-lg font-medium hover:underline"
+                    className="mt-3 block text-base font-medium text-sky-700 hover:text-sky-800 hover:underline"
                   >
                     {job.contactEmail}
                   </a>
@@ -213,15 +235,15 @@ export default function JobDetailPage() {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Status Update */}
-          <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-100">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">
+          <div className="rounded-[2rem] border border-white/70 bg-white/90 p-8 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+            <h2 className="mb-4 text-lg font-semibold tracking-tight text-slate-950">
               Update Status
             </h2>
             <select
               value={job.status}
               onChange={handleStatusChange}
               disabled={statusUpdating}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium bg-white disabled:bg-gray-100 transition"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-slate-900 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500/30 disabled:bg-slate-100"
             >
               {STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>
@@ -230,7 +252,9 @@ export default function JobDetailPage() {
               ))}
             </select>
             {statusUpdating && (
-              <p className="text-gray-600 text-sm mt-3 font-medium">🔄 Updating...</p>
+              <p className="mt-3 text-sm font-medium text-slate-500">
+                Updating...
+              </p>
             )}
           </div>
 
@@ -238,13 +262,13 @@ export default function JobDetailPage() {
           <button
             onClick={handleDelete}
             disabled={isDeleting}
-            className={`w-full py-4 px-6 rounded-xl font-bold text-white text-lg transition-all ${
+            className={`w-full rounded-2xl px-6 py-4 text-base font-semibold text-white transition-all ${
               isDeleting
-                ? "bg-red-300 cursor-not-allowed"
-                : "bg-red-600 hover:bg-red-700 hover:shadow-lg"
+                ? "cursor-not-allowed bg-red-300"
+                : "bg-red-600 hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-lg"
             }`}
           >
-            {isDeleting ? "🗑️ Deleting..." : "🗑️ Delete Request"}
+            {isDeleting ? "Deleting..." : "Delete request"}
           </button>
         </div>
       </div>
