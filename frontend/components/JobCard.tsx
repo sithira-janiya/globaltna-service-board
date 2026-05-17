@@ -1,54 +1,62 @@
-"use client";
-
 import Link from "next/link";
-import { Job } from "@/types/job";
+import { JobRequest } from "@/types/job";
 import StatusBadge from "./StatusBadge";
 
 interface JobCardProps {
-  job: Job;
+  job: JobRequest;
+}
+
+function formatDate(date?: string) {
+  if (!date) return "Recently added";
+
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(date));
 }
 
 export default function JobCard({ job }: JobCardProps) {
   return (
-    <Link href={`/jobs/${job._id}`}>
-      <div className="group flex h-full flex-col rounded-3xl border border-white/70 bg-white/95 p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_55px_rgba(15,23,42,0.12)]">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <h3 className="min-w-0 flex-1 break-words text-xl font-semibold tracking-tight text-slate-900">
-            {job.title}
-          </h3>
-          <StatusBadge status={job.status} />
-        </div>
-
-        <p className="mb-4 break-words text-sm leading-6 text-slate-600">
-          {job.description}
-        </p>
-
-        <div className="mb-5 flex flex-wrap gap-2">
-          <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 ring-1 ring-inset ring-slate-200">
+    <article className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <span className="inline-flex rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
             {job.category}
           </span>
+          <h3 className="mt-3 line-clamp-2 text-lg font-bold text-slate-950">
+            {job.title}
+          </h3>
         </div>
 
-        <div className="mt-auto space-y-2 border-t border-slate-100 pt-4 text-sm text-slate-600">
-          {job.location && (
-            <p className="font-medium">
-              <span className="text-slate-400">Location:</span> {job.location}
-            </p>
-          )}
-          {job.contactName && (
-            <p className="font-medium">
-              <span className="text-slate-400">Contact:</span> {job.contactName}
-            </p>
-          )}
-          <p className="pt-2 text-xs text-slate-400">
-            Created {new Date(job.createdAt).toLocaleDateString()}
-          </p>
-        </div>
-
-        <div className="mt-5 text-sm font-semibold text-slate-900 opacity-80 transition-opacity group-hover:opacity-100">
-          View request details →
-        </div>
+        <StatusBadge status={job.status} />
       </div>
-    </Link>
+
+      <p className="line-clamp-3 text-sm leading-6 text-slate-600">
+        {job.description}
+      </p>
+
+      <div className="mt-5 space-y-2 text-sm text-slate-600">
+        <p>
+          <span className="font-semibold text-slate-800">Location:</span>{" "}
+          {job.location || "Not specified"}
+        </p>
+        <p>
+          <span className="font-semibold text-slate-800">Contact:</span>{" "}
+          {job.contactName || "Not specified"}
+        </p>
+        <p>
+          <span className="font-semibold text-slate-800">Created:</span>{" "}
+          {formatDate(job.createdAt)}
+        </p>
+      </div>
+
+      <Link
+        href={`/jobs/${job._id}`}
+        className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+      >
+        View Details
+      </Link>
+    </article>
   );
 }
