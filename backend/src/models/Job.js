@@ -1,35 +1,56 @@
 const mongoose = require("mongoose");
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const jobSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: true,
+      required: [true, "Title is required"],
       trim: true,
     },
 
     description: {
       type: String,
-      required: true,
+      required: [true, "Description is required"],
       trim: true,
     },
 
     category: {
       type: String,
-      required: true,
+      required: [true, "Category is required"],
       trim: true,
     },
 
     location: {
       type: String,
-      required: true,
+      required: [true, "Location is required"],
       trim: true,
+    },
+
+    contactName: {
+      type: String,
+      required: [true, "Contact name is required"],
+      trim: true,
+    },
+
+    contactEmail: {
+      type: String,
+      required: [true, "Contact email is required"],
+      trim: true,
+      lowercase: true,
+      validate: {
+        validator(value) {
+          return emailRegex.test(value);
+        },
+        message: "Please enter a valid contact email",
+      },
     },
 
     status: {
       type: String,
-      enum: ["open", "in_progress", "closed"],
-      default: "open",
+      enum: ["Open", "In Progress", "Closed"],
+      default: "Open",
     },
 
     homeowner: {
@@ -47,4 +68,4 @@ const jobSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-module.exports = mongoose.model("Job", jobSchema);
+module.exports = mongoose.model("JobRequest", jobSchema, "jobRequests");

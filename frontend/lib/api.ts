@@ -196,11 +196,11 @@ export async function updateJobStatus(
   id: string,
   status: JobStatus,
 ): Promise<JobRequest> {
-  if (status === "in_progress") {
+  if (status === "In Progress") {
     return markJobInProgress(id);
   }
 
-  if (status === "closed") {
+  if (status === "Closed") {
     return markJobClosed(id);
   }
 

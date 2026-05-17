@@ -1,6 +1,6 @@
 export type UserRole = "homeowner" | "tradesperson";
 
-export type JobStatus = "open" | "in_progress" | "closed";
+export type JobStatus = "Open" | "In Progress" | "Closed";
 
 export type JobStatusFilter = "All" | JobStatus;
 
@@ -34,6 +34,8 @@ export type JobRequest = {
   description: string;
   category: string;
   location: string;
+  contactName: string;
+  contactEmail: string;
   status: JobStatus;
   homeowner?: {
     _id?: string;
@@ -56,6 +58,8 @@ export type JobFormData = {
   description: string;
   category: string;
   location: string;
+  contactName: string;
+  contactEmail: string;
 };
 
 export type JobFilters = {

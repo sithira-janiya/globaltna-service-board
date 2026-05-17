@@ -247,6 +247,16 @@ export default function JobDetailPage() {
                   />
 
                   <InfoCard
+                    label="Contact Name"
+                    value={job.contactName || "Not available"}
+                  />
+
+                  <InfoCard
+                    label="Contact Email"
+                    value={job.contactEmail || "Not available"}
+                  />
+
+                  <InfoCard
                     label="Homeowner"
                     value={job.homeowner?.name || "Not available"}
                   />
@@ -287,7 +297,7 @@ export default function JobDetailPage() {
                   </div>
                 )}
 
-                {user?.role === "tradesperson" && job.status === "open" && (
+                {user?.role === "tradesperson" && job.status === "Open" && (
                   <button
                     onClick={handleMarkInProgress}
                     disabled={isUpdating}
@@ -298,7 +308,7 @@ export default function JobDetailPage() {
                 )}
 
                 {user?.role === "tradesperson" &&
-                  job.status === "in_progress" &&
+                  job.status === "In Progress" &&
                   isAssignedTradesperson && (
                     <button
                       onClick={handleMarkClosed}
@@ -310,7 +320,7 @@ export default function JobDetailPage() {
                   )}
 
                 {user?.role === "tradesperson" &&
-                  job.status === "in_progress" &&
+                  job.status === "In Progress" &&
                   !isAssignedTradesperson && (
                     <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                       This request is already assigned to another tradesperson.
@@ -333,7 +343,7 @@ export default function JobDetailPage() {
                   </div>
                 )}
 
-                {job.status === "closed" && (
+                {job.status === "Closed" && (
                   <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
                     This request is already closed.
                   </div>
