@@ -1,127 +1,80 @@
-import axios, { AxiosError } from "axios";
-import { Job, ApiResponse, CreateJobInput } from "@/types/job";
+import { JobFormData, JobRequest, JobStatus } from "@/types/job";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
-  "http://localhost:5000/api";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 12000,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+async function handleResponse<T>(response: Response): Promise<T> {
+  const result = await response.json();
 
-function getErrorMessage(error: unknown, fallback: string): string {
-  const apiError = error as AxiosError<ApiResponse<null>>;
-  return apiError?.response?.data?.message || fallback;
+  if (!response.ok) {
+    throw new Error(result.message || "Something went wrong");
+  }
+
+  return result.data;
 }
 
-export const jobApi = {
-  async getAllJobs(filters?: { category?: string; status?: string }): Promise<{
-    success: boolean;
-    data: Job[];
-    error?: string;
-    count: number;
-  }> {
-    try {
-      const response = await axiosInstance.get<ApiResponse<Job[]>>("/jobs", {
-        params: filters,
-      });
-      return {
-        success: true,
-        data: response.data.data || [],
-        count: response.data.count || 0,
-      };
-    } catch (error) {
-      const message = getErrorMessage(error, "Failed to fetch jobs");
-      return {
-        success: false,
-        error: message,
-        data: [],
-        count: 0,
-      };
-    }
-  },
+export async function getJobs(params?: {
+  category?: string;
+  status?: string;
+}): Promise<JobRequest[]> {
+  const query = new URLSearchParams();
 
-  async getJobById(
-    id: string,
-  ): Promise<{ success: boolean; data?: Job; error?: string }> {
-    try {
-      const response = await axiosInstance.get<ApiResponse<Job>>(`/jobs/${id}`);
-      return {
-        success: true,
-        data: response.data.data,
-      };
-    } catch (error) {
-      const message = getErrorMessage(error, "Failed to fetch job");
-      return {
-        success: false,
-        error: message,
-      };
-    }
-  },
+  if (params?.category && params.category !== "All") {
+    query.append("category", params.category);
+  }
 
-  async createJob(jobData: CreateJobInput): Promise<{
-    success: boolean;
-    data?: Job;
-    error?: string;
-    errors?: string[];
-  }> {
-    try {
-      const response = await axiosInstance.post<ApiResponse<Job>>(
-        "/jobs",
-        jobData,
-      );
-      return {
-        success: true,
-        data: response.data.data,
-      };
-    } catch (error) {
-      const apiError = error as AxiosError<ApiResponse<null>>;
-      const errors = apiError?.response?.data?.errors || [];
-      const message = getErrorMessage(error, "Failed to create job");
-      return {
-        success: false,
-        error: message,
-        errors,
-      };
-    }
-  },
+  if (params?.status && params.status !== "All") {
+    query.append("status", params.status);
+  }
 
-  async updateJobStatus(
-    id: string,
-    status: Job["status"],
-  ): Promise<{ success: boolean; data?: Job; error?: string }> {
-    try {
-      const response = await axiosInstance.patch<ApiResponse<Job>>(
-        `/jobs/${id}`,
-        { status },
-      );
-      return {
-        success: true,
-        data: response.data.data,
-      };
-    } catch (error) {
-      const message = getErrorMessage(error, "Failed to update job");
-      return {
-        success: false,
-        error: message,
-      };
-    }
-  },
+  const url = `${API_BASE_URL}/jobs${query.toString() ? `?${query.toString()}` : ""}`;
+  const response = await fetch(url, { cache: "no-store" });
 
-  async deleteJob(id: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      await axiosInstance.delete(`/jobs/${id}`);
-      return { success: true };
-    } catch (error) {
-      const message = getErrorMessage(error, "Failed to delete job");
-      return {
-        success: false,
-        error: message,
-      };
-    }
-  },
-};
+  return handleResponse<JobRequest[]>(response);
+}
+
+export async function getJobById(id: string): Promise<JobRequest> {
+  const response = await fetch(`${API_BASE_URL}/jobs/${id}`, {
+    cache: "no-store",
+  });
+
+  return handleResponse<JobRequest>(response);
+}
+
+export async function createJob(data: JobFormData): Promise<JobRequest> {
+  const response = await fetch(`${API_BASE_URL}/jobs`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  return handleResponse<JobRequest>(response);
+}
+
+export async function updateJobStatus(
+  id: string,
+  status: JobStatus,
+): Promise<JobRequest> {
+  const response = await fetch(`${API_BASE_URL}/jobs/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ status }),
+  });
+
+  return handleResponse<JobRequest>(response);
+}
+
+export async function deleteJob(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/jobs/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || "Failed to delete job");
+  }
+}

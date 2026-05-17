@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { jobApi } from "@/lib/api";
-import { CreateJobInput, Job } from "@/types/job";
+import Link from "next/link";
+import { JobCategory, JobFormData } from "@/types/job";
 
-const CATEGORIES: Job["category"][] = [
+const categories: JobCategory[] = [
   "Plumbing",
   "Electrical",
   "Painting",
@@ -13,19 +12,19 @@ const CATEGORIES: Job["category"][] = [
   "Other",
 ];
 
-interface FormErrors {
-  title?: string;
-  description?: string;
-  category?: string;
-  contactEmail?: string;
+interface JobFormProps {
+  onSubmit: (data: JobFormData) => Promise<void>;
+  isSubmitting?: boolean;
 }
 
-export default function JobForm() {
-  const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-  const [formData, setFormData] = useState<CreateJobInput>({
+const inputClass =
+  "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100";
+
+export default function JobForm({
+  onSubmit,
+  isSubmitting = false,
+}: JobFormProps) {
+  const [formData, setFormData] = useState<JobFormData>({
     title: "",
     description: "",
     category: "Plumbing",
@@ -33,293 +32,176 @@ export default function JobForm() {
     contactName: "",
     contactEmail: "",
   });
-  const [errors, setErrors] = useState<FormErrors>({});
 
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
-    return emailRegex.test(email);
-  };
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof JobFormData, string>>
+  >({});
 
-  const validateForm = (): boolean => {
-    const newErrors: FormErrors = {};
+  function validate() {
+    const nextErrors: Partial<Record<keyof JobFormData, string>> = {};
 
     if (!formData.title.trim()) {
-      newErrors.title = "Title is required";
-    } else if (formData.title.trim().length < 3) {
-      newErrors.title = "Title must be at least 3 characters";
+      nextErrors.title = "Title is required";
     }
 
     if (!formData.description.trim()) {
-      newErrors.description = "Description is required";
-    } else if (formData.description.trim().length < 10) {
-      newErrors.description = "Description must be at least 10 characters";
+      nextErrors.description = "Description is required";
     }
 
-    if (!formData.category) {
-      newErrors.category = "Category is required";
+    if (!formData.location.trim()) {
+      nextErrors.location = "Location is required";
     }
 
-    if (
-      formData.contactEmail &&
-      formData.contactEmail.trim() &&
-      !validateEmail(formData.contactEmail)
-    ) {
-      newErrors.contactEmail = "Please enter a valid email address";
+    if (!formData.contactName.trim()) {
+      nextErrors.contactName = "Contact name is required";
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+    if (!formData.contactEmail.trim()) {
+      nextErrors.contactEmail = "Contact email is required";
+    } else if (!/^\S+@\S+\.\S+$/.test(formData.contactEmail)) {
+      nextErrors.contactEmail = "Enter a valid email address";
+    }
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >,
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!validate()) return;
+
+    await onSubmit(formData);
+  }
+
+  function updateField(field: keyof JobFormData, value: string) {
+    setFormData((previous) => ({
+      ...previous,
+      [field]: value,
     }));
 
-    if (errors[name as keyof FormErrors]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: undefined,
-      }));
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    if (!validateForm()) {
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    const result = await jobApi.createJob(formData);
-
-    if (result.success) {
-      setSuccessMessage("Job created successfully! Redirecting...");
-      setTimeout(() => {
-        router.push("/");
-      }, 1500);
-    } else {
-      setErrorMessage(result.error || "Failed to create job");
-    }
-
-    setIsSubmitting(false);
-  };
+    setErrors((previous) => ({
+      ...previous,
+      [field]: undefined,
+    }));
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-2xl space-y-6">
-      {errorMessage && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-700">
-            Something went wrong
-          </p>
-          <p className="mt-2 text-sm leading-6 text-red-800">{errorMessage}</p>
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">
-            Ready
-          </p>
-          <p className="mt-2 text-sm leading-6 text-emerald-800">
-            {successMessage}
-          </p>
-        </div>
-      )}
-
-      <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-8">
-        <div className="mb-6 border-b border-slate-100 pb-5">
-          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">
-            Request details
-          </p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Add the essentials so the request is clear at a glance.
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <label
-            htmlFor="title"
-            className="block text-sm font-semibold text-slate-900"
-          >
-            Job Title <span className="text-red-500">*</span>
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8"
+    >
+      <div className="grid gap-5 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <label className="mb-2 block text-sm font-semibold text-slate-800">
+            Request title
           </label>
           <input
-            type="text"
-            id="title"
-            name="title"
+            className={inputClass}
             value={formData.title}
-            onChange={handleChange}
-            placeholder="e.g., Fix kitchen sink"
-            className={`w-full rounded-2xl border px-5 py-3 text-slate-900 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500/30 ${
-              errors.title
-                ? "border-red-300 bg-red-50"
-                : "border-slate-200 bg-slate-50/60"
-            }`}
+            onChange={(event) => updateField("title", event.target.value)}
+            placeholder="Need a plumber for a leaking kitchen tap"
           />
           {errors.title && (
-            <p className="text-sm font-medium text-red-600">{errors.title}</p>
+            <p className="mt-1 text-sm text-red-600">{errors.title}</p>
           )}
-          <p className="text-xs text-slate-500">Keep it short and specific.</p>
         </div>
 
-        <div className="mt-6 space-y-2">
-          <label
-            htmlFor="description"
-            className="block text-sm font-semibold text-slate-900"
-          >
-            Description <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            id="description"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            placeholder="Describe the job in detail..."
-            rows={5}
-            className={`w-full resize-none rounded-2xl border px-5 py-3 text-slate-900 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500/30 ${
-              errors.description
-                ? "border-red-300 bg-red-50"
-                : "border-slate-200 bg-slate-50/60"
-            }`}
-          />
-          {errors.description && (
-            <p className="text-sm font-medium text-red-600">
-              {errors.description}
-            </p>
-          )}
-          <p className="text-xs text-slate-500">
-            Mention the issue, the room or area, and any access notes.
-          </p>
-        </div>
-
-        <div className="mt-6 space-y-2">
-          <label
-            htmlFor="category"
-            className="block text-sm font-semibold text-slate-900"
-          >
-            Category <span className="text-red-500">*</span>
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-slate-800">
+            Category
           </label>
           <select
-            id="category"
-            name="category"
+            className={inputClass}
             value={formData.category}
-            onChange={handleChange}
-            className={`w-full rounded-2xl border px-5 py-3 text-slate-900 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500/30 ${
-              errors.category
-                ? "border-red-300 bg-red-50"
-                : "border-slate-200 bg-slate-50/60"
-            }`}
+            onChange={(event) =>
+              updateField("category", event.target.value as JobCategory)
+            }
           >
-            {CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
+            {categories.map((category) => (
+              <option key={category}>{category}</option>
             ))}
           </select>
-          {errors.category && (
-            <p className="text-sm font-medium text-red-600">
-              {errors.category}
-            </p>
-          )}
         </div>
 
-        <div className="mt-6 space-y-2">
-          <label
-            htmlFor="location"
-            className="block text-sm font-semibold text-slate-900"
-          >
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-slate-800">
             Location
           </label>
           <input
-            type="text"
-            id="location"
-            name="location"
+            className={inputClass}
             value={formData.location}
-            onChange={handleChange}
-            placeholder="e.g., Kitchen"
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50/60 px-5 py-3 text-slate-900 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+            onChange={(event) => updateField("location", event.target.value)}
+            placeholder="Glasgow"
           />
-          <p className="text-xs text-slate-500">
-            Optional, but useful for routing the request quickly.
-          </p>
-        </div>
-
-        <div className="mt-6 space-y-2">
-          <label
-            htmlFor="contactName"
-            className="block text-sm font-semibold text-slate-900"
-          >
-            Contact Name
-          </label>
-          <input
-            type="text"
-            id="contactName"
-            name="contactName"
-            value={formData.contactName}
-            onChange={handleChange}
-            placeholder="e.g., John Smith"
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50/60 px-5 py-3 text-slate-900 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500/30"
-          />
-        </div>
-
-        <div className="mt-6 space-y-2">
-          <label
-            htmlFor="contactEmail"
-            className="block text-sm font-semibold text-slate-900"
-          >
-            Contact Email
-          </label>
-          <input
-            type="email"
-            id="contactEmail"
-            name="contactEmail"
-            value={formData.contactEmail}
-            onChange={handleChange}
-            placeholder="e.g., john@example.com"
-            className={`w-full rounded-2xl border px-5 py-3 text-slate-900 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500/30 ${
-              errors.contactEmail
-                ? "border-red-300 bg-red-50"
-                : "border-slate-200 bg-slate-50/60"
-            }`}
-          />
-          {errors.contactEmail && (
-            <p className="text-sm font-medium text-red-600">
-              {errors.contactEmail}
-            </p>
+          {errors.location && (
+            <p className="mt-1 text-sm text-red-600">{errors.location}</p>
           )}
         </div>
 
-        <div className="mt-8 flex flex-col gap-4 border-t border-slate-100 pt-6 sm:flex-row">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className={`flex-1 rounded-2xl px-6 py-4 text-base font-semibold text-white transition-all ${
-              isSubmitting
-                ? "cursor-not-allowed bg-slate-300"
-                : "bg-slate-900 shadow-lg shadow-slate-900/10 hover:-translate-y-0.5 hover:bg-slate-800"
-            }`}
-          >
-            {isSubmitting ? "Creating..." : "Create request"}
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push("/")}
-            className="flex-1 rounded-2xl bg-slate-100 px-6 py-4 text-base font-semibold text-slate-900 transition-all hover:bg-slate-200"
-          >
-            Cancel
-          </button>
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-slate-800">
+            Contact name
+          </label>
+          <input
+            className={inputClass}
+            value={formData.contactName}
+            onChange={(event) => updateField("contactName", event.target.value)}
+            placeholder="John Smith"
+          />
+          {errors.contactName && (
+            <p className="mt-1 text-sm text-red-600">{errors.contactName}</p>
+          )}
         </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-slate-800">
+            Contact email
+          </label>
+          <input
+            className={inputClass}
+            value={formData.contactEmail}
+            onChange={(event) =>
+              updateField("contactEmail", event.target.value)
+            }
+            placeholder="john@example.com"
+          />
+          {errors.contactEmail && (
+            <p className="mt-1 text-sm text-red-600">{errors.contactEmail}</p>
+          )}
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="mb-2 block text-sm font-semibold text-slate-800">
+            Description
+          </label>
+          <textarea
+            className={`${inputClass} min-h-36 resize-y`}
+            value={formData.description}
+            onChange={(event) => updateField("description", event.target.value)}
+            placeholder="Describe the issue clearly..."
+          />
+          {errors.description && (
+            <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <Link
+          href="/"
+          className="inline-flex justify-center rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+        >
+          Cancel
+        </Link>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="inline-flex justify-center rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isSubmitting ? "Creating..." : "Create Request"}
+        </button>
       </div>
     </form>
   );

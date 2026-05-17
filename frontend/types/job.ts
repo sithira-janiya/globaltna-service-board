@@ -1,29 +1,30 @@
-export interface Job {
+export type JobStatus = "Open" | "In Progress" | "Closed";
+
+export type JobCategory =
+  | "Plumbing"
+  | "Electrical"
+  | "Painting"
+  | "Joinery"
+  | "Other";
+
+export interface JobRequest {
   _id: string;
   title: string;
   description: string;
-  category: "Plumbing" | "Electrical" | "Painting" | "Joinery" | "Other";
+  category: JobCategory;
   location?: string;
   contactName?: string;
   contactEmail?: string;
-  status: "Open" | "In Progress" | "Closed";
-  createdAt: string;
-  updatedAt: string;
+  status: JobStatus;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  message?: string;
-  count?: number;
-  errors?: string[];
-}
-
-export interface CreateJobInput {
+export interface JobFormData {
   title: string;
   description: string;
-  category: Job["category"];
-  location?: string;
-  contactName?: string;
-  contactEmail?: string;
+  category: JobCategory;
+  location: string;
+  contactName: string;
+  contactEmail: string;
 }
