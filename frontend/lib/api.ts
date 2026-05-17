@@ -1,7 +1,30 @@
-import { JobFormData, JobRequest, JobStatus } from "@/types/job";
+import {
+  AuthResponse,
+  JobFormData,
+  JobRequest,
+  JobStatus,
+  LoginData,
+  RegisterData,
+} from "@/types/job";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+function getAuthHeaders(): HeadersInit {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  const token = localStorage.getItem("service_board_token");
+
+  if (!token) {
+    return {};
+  }
+
+  return {
+    Authorization: `Bearer ${token}`,
+  };
+}
 
 async function handleResponse<T>(response: Response): Promise<T> {
   const result = await response.json();
@@ -10,7 +33,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
     throw new Error(result.message || "Something went wrong");
   }
 
-  return result.data;
+  return result.data as T;
 }
 
 export async function getJobs(params?: {
@@ -27,8 +50,13 @@ export async function getJobs(params?: {
     query.append("status", params.status);
   }
 
-  const url = `${API_BASE_URL}/jobs${query.toString() ? `?${query.toString()}` : ""}`;
-  const response = await fetch(url, { cache: "no-store" });
+  const url = `${API_BASE_URL}/jobs${
+    query.toString() ? `?${query.toString()}` : ""
+  }`;
+
+  const response = await fetch(url, {
+    cache: "no-store",
+  });
 
   return handleResponse<JobRequest[]>(response);
 }
@@ -46,6 +74,7 @@ export async function createJob(data: JobFormData): Promise<JobRequest> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(data),
   });
@@ -61,6 +90,7 @@ export async function updateJobStatus(
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({ status }),
   });
@@ -71,10 +101,35 @@ export async function updateJobStatus(
 export async function deleteJob(id: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/jobs/${id}`, {
     method: "DELETE",
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
     const result = await response.json();
     throw new Error(result.message || "Failed to delete job");
   }
+}
+
+export async function registerUser(data: RegisterData): Promise<AuthResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  return handleResponse<AuthResponse>(response);
+}
+
+export async function loginUser(data: LoginData): Promise<AuthResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  return handleResponse<AuthResponse>(response);
 }

@@ -29,12 +29,20 @@ export default function JobDetailPage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("service_board_token");
+    setIsAuthenticated(Boolean(token));
+  }, []);
 
   async function loadJob() {
     try {
       setIsLoading(true);
       setError("");
+
       const data = await getJobById(id);
+
       setJob(data);
       setSelectedStatus(data.status);
     } catch (err) {
@@ -51,11 +59,12 @@ export default function JobDetailPage() {
   }, [id]);
 
   async function handleStatusUpdate() {
-    if (!job) return;
+    if (!job || !isAuthenticated) return;
 
     try {
       setIsUpdating(true);
       setError("");
+
       const updatedJob = await updateJobStatus(job._id, selectedStatus);
       setJob(updatedJob);
     } catch (err) {
@@ -66,7 +75,7 @@ export default function JobDetailPage() {
   }
 
   async function handleDelete() {
-    if (!job) return;
+    if (!job || !isAuthenticated) return;
 
     const confirmed = window.confirm(
       "Are you sure you want to delete this request?",
@@ -76,7 +85,9 @@ export default function JobDetailPage() {
 
     try {
       setIsDeleting(true);
+
       await deleteJob(job._id);
+
       router.push("/");
       router.refresh();
     } catch (err) {
@@ -93,6 +104,15 @@ export default function JobDetailPage() {
           <Link href="/" className="font-bold text-slate-950">
             ← Service Board
           </Link>
+
+          {!isAuthenticated && (
+            <Link
+              href="/login"
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            >
+              Login
+            </Link>
+          )}
         </div>
       </nav>
 
@@ -109,6 +129,7 @@ export default function JobDetailPage() {
               Something went wrong
             </h1>
             <p className="mt-2 text-sm text-red-600">{error}</p>
+
             <Link
               href="/"
               className="mt-5 inline-flex rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white"
@@ -124,15 +145,18 @@ export default function JobDetailPage() {
               <span className="inline-flex rounded-full bg-indigo-50 px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-indigo-700">
                 Request Details
               </span>
+
               <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h1 className="max-w-3xl text-4xl font-black tracking-tight text-slate-950">
                     {job.title}
                   </h1>
+
                   <p className="mt-3 text-slate-600">
                     Created {formatDate(job.createdAt)}
                   </p>
                 </div>
+
                 <StatusBadge status={job.status} />
               </div>
             </div>
@@ -142,20 +166,24 @@ export default function JobDetailPage() {
                 <h2 className="text-xl font-bold text-slate-950">
                   Description
                 </h2>
+
                 <p className="mt-4 whitespace-pre-line leading-7 text-slate-600">
                   {job.description}
                 </p>
 
                 <div className="mt-8 grid gap-4 sm:grid-cols-2">
                   <InfoCard label="Category" value={job.category} />
+
                   <InfoCard
                     label="Location"
                     value={job.location || "Not specified"}
                   />
+
                   <InfoCard
                     label="Contact Name"
                     value={job.contactName || "Not specified"}
                   />
+
                   <InfoCard
                     label="Contact Email"
                     value={job.contactEmail || "Not specified"}
@@ -167,20 +195,29 @@ export default function JobDetailPage() {
                 <h2 className="text-xl font-bold text-slate-950">
                   Manage request
                 </h2>
+
                 <p className="mt-2 text-sm text-slate-600">
                   Update the progress status or remove this request.
                 </p>
+
+                {!isAuthenticated && (
+                  <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                    Please log in to update or delete this request.
+                  </div>
+                )}
 
                 <div className="mt-6">
                   <label className="mb-2 block text-sm font-semibold text-slate-800">
                     Status
                   </label>
+
                   <select
                     value={selectedStatus}
                     onChange={(event) =>
                       setSelectedStatus(event.target.value as JobStatus)
                     }
-                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                    disabled={!isAuthenticated}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                   >
                     {statuses.map((status) => (
                       <option key={status}>{status}</option>
@@ -190,7 +227,11 @@ export default function JobDetailPage() {
 
                 <button
                   onClick={handleStatusUpdate}
-                  disabled={isUpdating || selectedStatus === job.status}
+                  disabled={
+                    isUpdating ||
+                    selectedStatus === job.status ||
+                    !isAuthenticated
+                  }
                   className="mt-4 w-full rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isUpdating ? "Updating..." : "Update Status"}
@@ -198,11 +239,20 @@ export default function JobDetailPage() {
 
                 <button
                   onClick={handleDelete}
-                  disabled={isDeleting}
+                  disabled={isDeleting || !isAuthenticated}
                   className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isDeleting ? "Deleting..." : "Delete Request"}
                 </button>
+
+                {!isAuthenticated && (
+                  <Link
+                    href="/login"
+                    className="mt-4 inline-flex w-full justify-center rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Login to Manage
+                  </Link>
+                )}
               </aside>
             </div>
           </>
@@ -218,6 +268,7 @@ function InfoCard({ label, value }: { label: string; value: string }) {
       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
         {label}
       </p>
+
       <p className="mt-2 font-semibold text-slate-900">{value}</p>
     </div>
   );
