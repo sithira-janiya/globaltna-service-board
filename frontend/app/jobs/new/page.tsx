@@ -2,15 +2,23 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import JobForm from "@/components/JobForm";
 import { createJob } from "@/lib/api";
 import { JobFormData } from "@/types/job";
+import { useEffect, useState } from "react";
 
 export default function NewJobPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const token = localStorage.getItem("service_board_token");
+
+    if (!token) {
+      router.push("/login");
+    }
+  }, [router]);
 
   async function handleCreateJob(data: JobFormData) {
     try {

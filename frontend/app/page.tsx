@@ -16,12 +16,32 @@ const categories = [
 ];
 const statuses = ["All", "Open", "In Progress", "Closed"];
 
+
 export default function HomePage() {
   const [jobs, setJobs] = useState<JobRequest[]>([]);
   const [category, setCategory] = useState("All");
   const [status, setStatus] = useState("All");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [currentUser, setCurrentUser] = useState<{
+    name: string;
+    email: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("service_board_user");
+
+    if (storedUser) {
+      setCurrentUser(JSON.parse(storedUser));
+    }
+  }, []);
+
+  function handleLogout() {
+    localStorage.removeItem("service_board_token");
+    localStorage.removeItem("service_board_user");
+    setCurrentUser(null);
+  }
+
 
   async function loadJobs() {
     try {
@@ -57,27 +77,44 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-slate-50">
       <nav className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-950 text-white shadow-sm">
-              SB
-            </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.25em] text-indigo-600">
-                Operations
-              </p>
-              <h1 className="text-lg font-bold text-slate-950">
-                Service Board
-              </h1>
-            </div>
-          </Link>
+        <div className="flex items-center gap-3">
+          {currentUser ? (
+            <>
+              <span className="hidden text-sm font-medium text-slate-600 sm:inline">
+                Hi, {currentUser.name}
+              </span>
 
-          <Link
-            href="/jobs/new"
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-          >
-            New Request
-          </Link>
+              <button
+                onClick={handleLogout}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+              >
+                Logout
+              </button>
+
+              <Link
+                href="/jobs/new"
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+              >
+                New Request
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+              >
+                Login
+              </Link>
+
+              <Link
+                href="/register"
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+              >
+                Register
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 

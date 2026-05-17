@@ -1,4 +1,6 @@
 const express = require("express");
+const { protect } = require("../middleware/authMiddleware");
+
 const {
   getAllJobs,
   getJobById,
@@ -11,9 +13,9 @@ const router = express.Router();
 
 
 router.get("/", getAllJobs);
-router.post("/", createJob);
 router.get("/:id", getJobById);
-router.patch("/:id", updateJobStatus);
-router.delete("/:id", deleteJob);
+router.post("/", protect, createJob);
+router.patch("/:id", protect, updateJobStatus);
+router.delete("/:id", protect, deleteJob);
 
 module.exports = router;

@@ -5,6 +5,7 @@ const morgan = require("morgan");
 require("dotenv").config();
 
 const jobRoutes = require("./routes/jobRoutes");
+const authRoutes = require("./routes/authRoutes");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -41,6 +42,7 @@ app.get("/health", (_req, res) => {
 let server;
 
 // Routes
+app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
 
 // 404 for missing routes
