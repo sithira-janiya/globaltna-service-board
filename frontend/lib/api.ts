@@ -174,37 +174,25 @@ export async function createJob(data: JobFormData): Promise<JobRequest> {
   return handleResponse<JobRequest>(response);
 }
 
-export async function markJobInProgress(id: string): Promise<JobRequest> {
-  const response = await fetch(`${API_BASE_URL}/jobs/${id}/in-progress`, {
-    method: "PATCH",
-    headers: getAuthHeaders(),
-  });
-
-  return handleResponse<JobRequest>(response);
-}
-
-export async function markJobClosed(id: string): Promise<JobRequest> {
-  const response = await fetch(`${API_BASE_URL}/jobs/${id}/closed`, {
-    method: "PATCH",
-    headers: getAuthHeaders(),
-  });
-
-  return handleResponse<JobRequest>(response);
-}
-
 export async function updateJobStatus(
   id: string,
   status: JobStatus,
 ): Promise<JobRequest> {
-  if (status === "In Progress") {
-    return markJobInProgress(id);
-  }
+  const response = await fetch(`${API_BASE_URL}/jobs/${id}`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ status }),
+  });
 
-  if (status === "Closed") {
-    return markJobClosed(id);
-  }
+  return handleResponse<JobRequest>(response);
+}
 
-  throw new Error("Open status cannot be manually restored");
+export async function markJobInProgress(id: string): Promise<JobRequest> {
+  return updateJobStatus(id, "In Progress");
+}
+
+export async function markJobClosed(id: string): Promise<JobRequest> {
+  return updateJobStatus(id, "Closed");
 }
 
 export async function deleteJob(id: string): Promise<void> {
