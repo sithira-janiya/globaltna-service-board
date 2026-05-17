@@ -1,6 +1,7 @@
 import {
   AuthResponse,
   AuthUser,
+  JobFilters,
   JobFormData,
   JobRequest,
   JobStatus,
@@ -121,18 +122,23 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
   return result;
 }
 
-export async function getJobs(params?: {
-  category?: string;
-  status?: string;
-}): Promise<JobRequest[]> {
+export async function getJobs(filters?: JobFilters): Promise<JobRequest[]> {
   const query = new URLSearchParams();
 
-  if (params?.category && params.category !== "All") {
-    query.append("category", params.category);
+  if (filters?.search && filters.search.trim() !== "") {
+    query.append("search", filters.search.trim());
   }
 
-  if (params?.status && params.status !== "All") {
-    query.append("status", params.status);
+  if (filters?.category && filters.category !== "All") {
+    query.append("category", filters.category);
+  }
+
+  if (filters?.status && filters.status !== "All") {
+    query.append("status", filters.status);
+  }
+
+  if (filters?.location && filters.location.trim() !== "") {
+    query.append("location", filters.location.trim());
   }
 
   const queryString = query.toString();
@@ -186,10 +192,6 @@ export async function markJobClosed(id: string): Promise<JobRequest> {
   return handleResponse<JobRequest>(response);
 }
 
-/**
- * Backward-compatible function for old pages/components.
- * Prefer using markJobInProgress() and markJobClosed() in new role-based UI.
- */
 export async function updateJobStatus(
   id: string,
   status: JobStatus,

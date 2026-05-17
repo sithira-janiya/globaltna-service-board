@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import JobCard from "@/components/JobCard";
+import StatusBadge from "@/components/StatusBadge";
 import {
   createJob,
   deleteJob,
@@ -11,7 +13,13 @@ import {
   markJobClosed,
   markJobInProgress,
 } from "@/lib/api";
-import { AuthUser, JobFormData, JobRequest } from "@/types/job";
+import {
+  AuthUser,
+  JobFilters,
+  JobFormData,
+  JobRequest,
+  JobStatusFilter,
+} from "@/types/job";
 
 const initialFormData: JobFormData = {
   title: "",
@@ -20,13 +28,12 @@ const initialFormData: JobFormData = {
   location: "",
 };
 
-function getOwnerId(job: JobRequest) {
-  return job.homeowner?._id || job.homeowner?.id;
-}
-
-function getAssignedTradespersonId(job: JobRequest) {
-  return job.assignedTradesperson?._id || job.assignedTradesperson?.id;
-}
+const statusOptions: { label: string; value: JobStatusFilter }[] = [
+  { label: "All Statuses", value: "All" },
+  { label: "Open", value: "open" },
+  { label: "In Progress", value: "in_progress" },
+  { label: "Closed", value: "closed" },
+];
 
 export default function HomePage() {
   const router = useRouter();
@@ -34,6 +41,11 @@ export default function HomePage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [jobs, setJobs] = useState<JobRequest[]>([]);
   const [formData, setFormData] = useState<JobFormData>(initialFormData);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<JobStatusFilter>("All");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [locationFilter, setLocationFilter] = useState("");
 
   const [showForm, setShowForm] = useState(false);
   const [selectedJob, setSelectedJob] = useState<JobRequest | null>(null);
@@ -50,6 +62,20 @@ export default function HomePage() {
     };
   }, [jobs]);
 
+  const categoryOptions = useMemo(() => {
+    const categories = jobs
+      .map((job) => job.category)
+      .filter((category) => Boolean(category));
+
+    return ["All", ...Array.from(new Set(categories)).sort()];
+  }, [jobs]);
+
+  const hasActiveFilters =
+    searchTerm.trim() !== "" ||
+    selectedStatus !== "All" ||
+    selectedCategory !== "All" ||
+    locationFilter.trim() !== "";
+
   useEffect(() => {
     const storedUser = getStoredUser();
 
@@ -59,15 +85,31 @@ export default function HomePage() {
     }
 
     setUser(storedUser);
-    loadJobs();
   }, [router]);
 
-  async function loadJobs() {
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      loadJobs({
+        search: searchTerm,
+        status: selectedStatus,
+        category: selectedCategory,
+        location: locationFilter,
+      });
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [user, searchTerm, selectedStatus, selectedCategory, locationFilter]);
+
+  async function loadJobs(filters?: JobFilters) {
     try {
       setLoading(true);
       setError("");
 
-      const data = await getJobs();
+      const data = await getJobs(filters);
       setJobs(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load requests");
@@ -91,7 +133,13 @@ export default function HomePage() {
 
       setFormData(initialFormData);
       setShowForm(false);
-      await loadJobs();
+
+      await loadJobs({
+        search: searchTerm,
+        status: selectedStatus,
+        category: selectedCategory,
+        location: locationFilter,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create request");
     }
@@ -101,7 +149,13 @@ export default function HomePage() {
     try {
       setError("");
       await markJobInProgress(id);
-      await loadJobs();
+
+      await loadJobs({
+        search: searchTerm,
+        status: selectedStatus,
+        category: selectedCategory,
+        location: locationFilter,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update request");
     }
@@ -111,7 +165,13 @@ export default function HomePage() {
     try {
       setError("");
       await markJobClosed(id);
-      await loadJobs();
+
+      await loadJobs({
+        search: searchTerm,
+        status: selectedStatus,
+        category: selectedCategory,
+        location: locationFilter,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to close request");
     }
@@ -122,10 +182,32 @@ export default function HomePage() {
       setError("");
       await deleteJob(id);
       setSelectedJob(null);
-      await loadJobs();
+
+      await loadJobs({
+        search: searchTerm,
+        status: selectedStatus,
+        category: selectedCategory,
+        location: locationFilter,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete request");
     }
+  }
+
+  function handleRefresh() {
+    loadJobs({
+      search: searchTerm,
+      status: selectedStatus,
+      category: selectedCategory,
+      location: locationFilter,
+    });
+  }
+
+  function handleClearFilters() {
+    setSearchTerm("");
+    setSelectedStatus("All");
+    setSelectedCategory("All");
+    setLocationFilter("");
   }
 
   function handleLogout() {
@@ -188,12 +270,12 @@ export default function HomePage() {
           </div>
 
           <h2 className="mt-8 max-w-3xl text-5xl font-black leading-tight tracking-tight sm:text-6xl">
-            Manage homeowner requests with clarity.
+            Find the right request faster.
           </h2>
 
           <p className="mt-6 max-w-3xl text-xl leading-8 text-slate-600">
-            Homeowners can post service requests. Tradespeople can browse open
-            work, view details, and move requests through progress.
+            Search by request title, description, homeowner name, or location.
+            Filter requests by status, category, and location in real time.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-4">
@@ -207,7 +289,7 @@ export default function HomePage() {
             )}
 
             <button
-              onClick={loadJobs}
+              onClick={handleRefresh}
               className="rounded-2xl border border-slate-300 bg-white px-6 py-4 font-bold text-slate-700 hover:bg-slate-50"
             >
               Refresh
@@ -222,10 +304,97 @@ export default function HomePage() {
         </div>
 
         <div className="space-y-5">
-          <SummaryCard title="Total Requests" value={totals.total} dark />
+          <SummaryCard title="Results Showing" value={totals.total} dark />
           <SummaryCard title="Open" value={totals.open} />
           <SummaryCard title="In Progress" value={totals.inProgress} warning />
           <SummaryCard title="Closed" value={totals.closed} />
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 pb-8">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr_auto] lg:items-end">
+            <div>
+              <label className="text-sm font-bold text-slate-700">
+                Search requests
+              </label>
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search title, description, homeowner, location..."
+                className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-bold text-slate-700">Status</label>
+              <select
+                value={selectedStatus}
+                onChange={(event) =>
+                  setSelectedStatus(event.target.value as JobStatusFilter)
+                }
+                className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500"
+              >
+                {statusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-bold text-slate-700">
+                Category
+              </label>
+              <select
+                value={selectedCategory}
+                onChange={(event) => setSelectedCategory(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500"
+              >
+                {categoryOptions.map((category) => (
+                  <option key={category} value={category}>
+                    {category === "All" ? "All Categories" : category}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-bold text-slate-700">
+                Location
+              </label>
+              <input
+                type="search"
+                value={locationFilter}
+                onChange={(event) => setLocationFilter(event.target.value)}
+                placeholder="Glasgow"
+                className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              disabled={!hasActiveFilters}
+              className="rounded-2xl border border-slate-300 px-5 py-3 font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Clear
+            </button>
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-600">
+            <span className="font-bold text-slate-800">
+              {loading ? "Searching..." : `${jobs.length} result(s) found`}
+            </span>
+
+            {hasActiveFilters && (
+              <span className="rounded-full bg-indigo-50 px-3 py-1 font-semibold text-indigo-700">
+                Filters active
+              </span>
+            )}
+          </div>
         </div>
       </section>
 
@@ -236,99 +405,33 @@ export default function HomePage() {
           </div>
         ) : jobs.length === 0 ? (
           <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center">
-            <h3 className="text-2xl font-black">No service requests yet</h3>
+            <h3 className="text-2xl font-black">No matching requests</h3>
             <p className="mt-2 text-slate-600">
-              Homeowners can create the first request.
+              Try clearing filters or searching another keyword.
             </p>
+
+            {hasActiveFilters && (
+              <button
+                onClick={handleClearFilters}
+                className="mt-5 rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white hover:bg-indigo-700"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {jobs.map((job) => {
-              const ownerId = getOwnerId(job);
-              const assignedTradespersonId = getAssignedTradespersonId(job);
-
-              const isOwner = user.role === "homeowner" && ownerId === user.id;
-
-              const isAssignedTradesperson =
-                user.role === "tradesperson" &&
-                assignedTradespersonId === user.id;
-
-              return (
-                <article
-                  key={job._id}
-                  className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-black uppercase tracking-[0.25em] text-indigo-600">
-                        {job.category}
-                      </p>
-                      <h3 className="mt-3 text-2xl font-black">{job.title}</h3>
-                    </div>
-
-                    <StatusBadge status={job.status} />
-                  </div>
-
-                  <p className="mt-4 line-clamp-3 text-slate-600">
-                    {job.description}
-                  </p>
-
-                  <p className="mt-5 font-bold text-slate-800">
-                    Location: {job.location}
-                  </p>
-
-                  {job.homeowner && (
-                    <p className="mt-2 text-sm text-slate-500">
-                      Posted by: {job.homeowner.name}
-                    </p>
-                  )}
-
-                  {job.assignedTradesperson && (
-                    <p className="mt-1 text-sm text-slate-500">
-                      Assigned to: {job.assignedTradesperson.name}
-                    </p>
-                  )}
-
-                  <div className="mt-6 flex flex-wrap gap-3">
-                    <button
-                      onClick={() => setSelectedJob(job)}
-                      className="rounded-2xl border border-slate-300 px-4 py-2 font-bold text-slate-700 hover:bg-slate-50"
-                    >
-                      View Details
-                    </button>
-
-                    {user.role === "tradesperson" && job.status === "open" && (
-                      <button
-                        onClick={() => handleMarkInProgress(job._id)}
-                        className="rounded-2xl bg-amber-500 px-4 py-2 font-bold text-white hover:bg-amber-600"
-                      >
-                        Mark In Progress
-                      </button>
-                    )}
-
-                    {user.role === "tradesperson" &&
-                      job.status === "in_progress" &&
-                      isAssignedTradesperson && (
-                        <button
-                          onClick={() => handleMarkClosed(job._id)}
-                          className="rounded-2xl bg-emerald-600 px-4 py-2 font-bold text-white hover:bg-emerald-700"
-                        >
-                          Mark Closed
-                        </button>
-                      )}
-
-                    {isOwner && (
-                      <button
-                        onClick={() => handleDelete(job._id)}
-                        className="rounded-2xl bg-red-600 px-4 py-2 font-bold text-white hover:bg-red-700"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
+            {jobs.map((job) => (
+              <JobCard
+                key={job._id}
+                job={job}
+                user={user}
+                searchTerm={searchTerm}
+                onMarkInProgress={handleMarkInProgress}
+                onMarkClosed={handleMarkClosed}
+                onDelete={handleDelete}
+              />
+            ))}
           </div>
         )}
       </section>
@@ -454,28 +557,6 @@ function SummaryCard({
       <p className="font-bold opacity-80">{title}</p>
       <p className="mt-5 text-5xl font-black">{value}</p>
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const label =
-    status === "in_progress"
-      ? "In Progress"
-      : status.charAt(0).toUpperCase() + status.slice(1);
-
-  return (
-    <span
-      className={[
-        "rounded-full px-4 py-2 text-xs font-black uppercase tracking-wider",
-        status === "open"
-          ? "bg-blue-50 text-blue-700"
-          : status === "in_progress"
-            ? "bg-amber-50 text-amber-700"
-            : "bg-emerald-50 text-emerald-700",
-      ].join(" ")}
-    >
-      {label}
-    </span>
   );
 }
 

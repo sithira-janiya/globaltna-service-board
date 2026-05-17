@@ -6,14 +6,56 @@ const router = express.Router();
 
 router.get("/", protect, async (req, res) => {
   try {
-    const jobs = await Job.find()
+    const {
+      search = "",
+      category = "",
+      status = "",
+      location = "",
+    } = req.query;
+
+    const filter = {};
+
+    if (category && category !== "All") {
+      filter.category = category;
+    }
+
+    if (status && status !== "All") {
+      filter.status = status;
+    }
+
+    if (location && location !== "All") {
+      filter.location = { $regex: location, $options: "i" };
+    }
+
+    let jobs = await Job.find(filter)
       .populate("homeowner", "name email")
       .populate("assignedTradesperson", "name email")
       .sort({ createdAt: -1 });
 
+    if (search && search.trim() !== "") {
+      const searchTerm = search.trim().toLowerCase();
+
+      jobs = jobs.filter((job) => {
+        const title = job.title?.toLowerCase() || "";
+        const description = job.description?.toLowerCase() || "";
+        const jobLocation = job.location?.toLowerCase() || "";
+        const homeownerName = job.homeowner?.name?.toLowerCase() || "";
+
+        return (
+          title.includes(searchTerm) ||
+          description.includes(searchTerm) ||
+          jobLocation.includes(searchTerm) ||
+          homeownerName.includes(searchTerm)
+        );
+      });
+    }
+
     res.json({ data: jobs });
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch requests" });
+    res.status(500).json({
+      message: "Failed to fetch requests",
+      error: error.message,
+    });
   }
 });
 
@@ -50,9 +92,13 @@ router.post("/", protect, allowRoles("homeowner"), async (req, res) => {
       status: "open",
     });
 
+    const populatedJob = await Job.findById(job._id)
+      .populate("homeowner", "name email")
+      .populate("assignedTradesperson", "name email");
+
     res.status(201).json({
       message: "Service request created successfully",
-      data: job,
+      data: populatedJob,
     });
   } catch (error) {
     res.status(500).json({ message: "Failed to create request" });
@@ -82,9 +128,13 @@ router.patch(
 
       await job.save();
 
+      const updatedJob = await Job.findById(job._id)
+        .populate("homeowner", "name email")
+        .populate("assignedTradesperson", "name email");
+
       res.json({
         message: "Request marked as in progress",
-        data: job,
+        data: updatedJob,
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to update request" });
@@ -120,9 +170,13 @@ router.patch(
 
       await job.save();
 
+      const updatedJob = await Job.findById(job._id)
+        .populate("homeowner", "name email")
+        .populate("assignedTradesperson", "name email");
+
       res.json({
         message: "Request closed successfully",
-        data: job,
+        data: updatedJob,
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to close request" });
