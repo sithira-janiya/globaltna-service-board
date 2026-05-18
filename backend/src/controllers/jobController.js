@@ -1,10 +1,10 @@
 const JobRequest = require("../models/JobRequest");
 
+// Get all job requests with optional category and status filters
 exports.getAllJobs = async (req, res, next) => {
   try {
     const { category, status } = req.query;
 
-    // Build filter object
     const filter = {};
     if (category) filter.category = category;
     if (status) filter.status = status;
@@ -21,7 +21,7 @@ exports.getAllJobs = async (req, res, next) => {
   }
 };
 
-
+// Get a single job request by ID
 exports.getJobById = async (req, res, next) => {
   try {
     const job = await JobRequest.findById(req.params.id);
@@ -42,7 +42,7 @@ exports.getJobById = async (req, res, next) => {
   }
 };
 
-
+// Create a new job request
 exports.createJob = async (req, res, next) => {
   try {
     const job = await JobRequest.create(req.body);
@@ -57,12 +57,11 @@ exports.createJob = async (req, res, next) => {
   }
 };
 
-
+// Update only the status of a job request
 exports.updateJobStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
 
-    // Validate that status is provided
     if (!status) {
       return res.status(400).json({
         success: false,
@@ -96,7 +95,7 @@ exports.updateJobStatus = async (req, res, next) => {
   }
 };
 
-
+// Delete a job request
 exports.deleteJob = async (req, res, next) => {
   try {
     const job = await JobRequest.findByIdAndDelete(req.params.id);
